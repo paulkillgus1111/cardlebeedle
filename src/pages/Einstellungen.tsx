@@ -7,7 +7,6 @@ import {
   Database,
   Download,
   Eraser,
-  KeyRound,
   LayoutGrid,
   LogOut,
   Minus,
@@ -52,6 +51,7 @@ import {
 import { setActiveClassId, useActiveClass, useClasses, useStudents } from '../lib/hooks'
 import { bandFor, KIND_LABEL, SUBJECTS_BY_GRADE } from '../lib/seed'
 import { supabase, sync } from '../lib/sync'
+import { signOut as signOutLocal } from '../lib/auth'
 import { setTheme, useTheme, type ThemePref } from '../lib/theme'
 
 type Tab = 'klasse' | 'kinder' | 'sitzplan' | 'vorlagen' | 'kompetenzen' | 'darstellung' | 'konto'
@@ -914,9 +914,6 @@ type AnyRow = { id?: string; updatedAt?: string; attachments?: Attachment[] }
 const ts = (s?: string) => (s ? Date.parse(s) || 0 : 0)
 
 function Konto() {
-  const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
-  const [sent, setSent] = useState(false)
   const [user, setUser] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -1011,12 +1008,9 @@ function Konto() {
               </div>
               <Button
                 variant="ghost"
-                onClick={async () => {
-                  await supabase.auth.signOut()
-                  toast('Abgemeldet – deine Daten bleiben auf diesem Gerät.')
-                }}
+                onClick={() => signOutLocal()}
               >
-                <LogOut size={16} /> Abmelden
+                <LogOut size={16} /> Abmelden / Konto wechseln
               </Button>
             </div>
             {syncErrors.length > 0 && (
@@ -1052,61 +1046,7 @@ function Konto() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-slate-600">
-              Die App funktioniert komplett offline. Mit einem Konto werden deine Daten zusätzlich gesichert und zwischen iPad und Laptop abgeglichen.
-            </p>
-            <div className="rounded-xl bg-slate-50 p-3 text-[13px] text-slate-600 ring-1 ring-slate-100">
-              <p className="mb-1 flex items-center gap-2 font-medium text-slate-800">
-                <KeyRound size={15} /> So funktioniert die Anmeldung
-              </p>
-              <ol className="list-decimal space-y-0.5 pl-5">
-                <li>
-                  Beim ersten Mal: E-Mail und ein selbst gewähltes Passwort (mind. 6 Zeichen) eingeben, dann <b className="font-medium">Konto anlegen</b>.
-                </li>
-                <li>Den Link in der Bestätigungs-Mail öffnen.</li>
-                <li>
-                  Danach auf jedem Gerät mit denselben Daten <b className="font-medium">Anmelden</b>.
-                </li>
-              </ol>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="E-Mail">
-                <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@schule.de" className={inputCls} />
-              </Field>
-              <Field label="Passwort" hint="Mindestens 6 Zeichen">
-                <input type="password" autoComplete="current-password" value={code} onChange={(e) => setCode(e.target.value)} placeholder="••••••" className={inputCls} />
-              </Field>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                variant="secondary"
-                disabled={!email || code.length < 6 || busy}
-                onClick={async () => {
-                  setBusy(true)
-                  const { data, error } = await supabase.auth.signUp({ email, password: code, options: { emailRedirectTo: location.origin } })
-                  setBusy(false)
-                  if (error) toast(error.message)
-                  else if (!data.session) setSent(true)
-                  else toast('Konto angelegt')
-                }}
-              >
-                Konto anlegen
-              </Button>
-              <Button
-                disabled={!email || code.length < 6 || busy}
-                onClick={async () => {
-                  setBusy(true)
-                  const { error } = await supabase.auth.signInWithPassword({ email, password: code })
-                  setBusy(false)
-                  toast(error ? `Anmeldung fehlgeschlagen: ${error.message}` : 'Angemeldet')
-                }}
-              >
-                Anmelden
-              </Button>
-            </div>
-            {sent && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Bestätigungs-Mail verschickt. Link in der Mail öffnen, danach hier anmelden.</p>}
-          </div>
+          <p className="text-sm text-slate-500">Nicht angemeldet.</p>
         )}
       </Card>
       <Card title="Backup" icon={Database}>

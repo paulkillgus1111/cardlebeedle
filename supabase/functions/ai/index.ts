@@ -1,4 +1,4 @@
-// KI-Assistent des Lehrer-Cockpits (Supabase Edge Function, Deno).
+// KI-Assistent von Cardle Beedle (Supabase Edge Function, Deno).
 // Der API-Key liegt ausschließlich als Secret ANTHROPIC_API_KEY auf dem Server.
 import Anthropic from 'npm:@anthropic-ai/sdk'
 import { createClient } from 'npm:@supabase/supabase-js@2'

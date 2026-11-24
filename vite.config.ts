@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'Lehrer-Cockpit',
-        short_name: 'Cockpit',
+        name: 'Cardle Beedle',
+        short_name: 'Cardle Beedle',
         lang: 'de',
         start_url: '/',
         display: 'standalone',
