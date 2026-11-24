@@ -38,6 +38,8 @@ export interface Student extends Base {
   birthday?: string
   support?: Support
   info?: string
+  /** Zeugnistext-Entwürfe, Schlüssel z. B. "2026/27 Jahreszeugnis" */
+  reports?: Record<string, string>
 }
 
 export interface Competency extends Base {

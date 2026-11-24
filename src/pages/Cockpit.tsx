@@ -5,7 +5,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, CalendarClock, CheckCircle2, Info, Play, Plus, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AiButton, AiTextSheet, AskSheet as AskClassSheet, DictationSheet } from '../components/AiSheets'
 import { StartLessonSheet } from '../components/LessonSheets'
+import { ai, classContext } from '../lib/ai'
 import { QuickCapture, type CaptureContext } from '../components/QuickCapture'
 import { Avatar, Button, Card, CoverageRing, Empty, ValenceDot } from '../components/ui'
 import { alive, db } from '../lib/db'
@@ -22,6 +24,9 @@ export default function Cockpit() {
   const lessons = useLiveQuery(async () => (cls ? alive(await db.lessons.where('classId').equals(cls.id).toArray()) : []), [cls?.id]) ?? []
   const [capture, setCapture] = useState<CaptureContext | null>(null)
   const [starting, setStarting] = useState(false)
+  const [dictating, setDictating] = useState(false)
+  const [weekly, setWeekly] = useState(false)
+  const [asking, setAsking] = useState(false)
 
   const stats = useMemo(() => studentStats(students, obs), [students, obs])
   const focus = useMemo(() => focusChildren(stats, goals), [stats, goals])
@@ -71,9 +76,14 @@ export default function Cockpit() {
           <p className="text-sm text-slate-500">{format(new Date(), "EEEE, d. MMMM yyyy", { locale: de })}</p>
           <h1 className="text-2xl font-semibold">Cockpit · {cls.name}</h1>
         </div>
-        <Button onClick={() => setCapture(ctxFor([]))} size="lg">
-          <Plus size={18} /> Beobachtung
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <AiButton size="lg" onClick={() => setDictating(true)}>
+            Diktat → Einträge
+          </AiButton>
+          <Button onClick={() => setCapture(ctxFor([]))} size="lg">
+            <Plus size={18} /> Beobachtung
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -194,6 +204,10 @@ export default function Cockpit() {
               ? `Noch ohne Eintrag diese Woche: ${students.filter((s) => !weekKids.has(s.id)).map((s) => s.firstName).join(', ')}`
               : 'Alle Kinder wurden diese Woche beobachtet.'}
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <AiButton onClick={() => setWeekly(true)}>Wochenrückblick</AiButton>
+            <AiButton onClick={() => setAsking(true)}>Frage zur Klasse</AiButton>
+          </div>
         </Card>
 
         {/* ZULETZT */}
@@ -218,6 +232,17 @@ export default function Cockpit() {
       </div>
 
       <QuickCapture ctx={capture} onClose={() => setCapture(null)} />
+      {dictating && <DictationSheet open onClose={() => setDictating(false)} cls={cls} students={students} comps={comps} lessonId={running?.id} subject={running?.subject} />}
+      {weekly && (
+        <AiTextSheet
+          open
+          onClose={() => setWeekly(false)}
+          title="Wochenrückblick"
+          deps={[]}
+          run={async () => (await ai('weekly', classContext(cls, students, obs, comps, lessons, weekStart))).text}
+        />
+      )}
+      <AskClassSheet open={asking} onClose={() => setAsking(false)} data={() => classContext(cls, students, obs, comps, lessons, daysAgo(90))} />
       {starting && <StartLessonSheet open onClose={() => setStarting(false)} cls={cls} competencies={comps} students={students} />}
     </div>
   )

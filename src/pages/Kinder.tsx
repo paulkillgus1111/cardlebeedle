@@ -6,9 +6,12 @@ import { MessagesSquare, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AttachmentView } from '../components/media'
+import { AiButton, AskSheet } from '../components/AiSheets'
 import { QuickCapture, type CaptureContext } from '../components/QuickCapture'
+import { ReportEditor, TERMS } from '../components/ReportEditor'
 import { Avatar, Button, Card, CoverageRing, Empty, Field, inputCls, Segmented, ValenceDot } from '../components/ui'
-import { alive, db, now, save, uid, type Competency, type Goal, type Observation, type ObsKind, type Student } from '../lib/db'
+import { alive, db, now, save, uid, type Competency, type Goal, type Observation, type ObsKind, type SchoolClass, type Student } from '../lib/db'
+import { studentContext } from '../lib/ai'
 import { useActiveClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
 import { agoText, studentStats } from '../lib/insights'
 import { KIND_LABEL, LEVEL_LABEL } from '../lib/seed'
@@ -72,7 +75,7 @@ export function SupportBadges({ s }: { s: Student }) {
   )
 }
 
-type Tab = 'verlauf' | 'kompetenzen' | 'verhalten' | 'ziele' | 'profil'
+type Tab = 'verlauf' | 'kompetenzen' | 'verhalten' | 'ziele' | 'zeugnis' | 'profil'
 
 function Akte({ id }: { id: string }) {
   const student = useLiveQuery(() => db.students.get(id), [id])
@@ -82,6 +85,8 @@ function Akte({ id }: { id: string }) {
   const comps = useCompetencies(cls)
   const [tab, setTab] = useState<Tab>('verlauf')
   const [capture, setCapture] = useState<CaptureContext | null>(null)
+  const [asking, setAsking] = useState(false)
+  const goals = useLiveQuery(async () => alive(await db.goals.where('studentId').equals(id).toArray()), [id]) ?? []
   if (!student || !cls) return null
   const obs = allObs.filter((o) => o.studentIds.includes(id))
   const stats = studentStats([student], allObs)[0]
@@ -110,6 +115,9 @@ function Akte({ id }: { id: string }) {
             <MessagesSquare size={16} /> Gespräch vorbereiten
           </Button>
         </Link>
+        <AiButton size="md" onClick={() => setAsking(true)}>
+          Frage an die Akte
+        </AiButton>
         <Button onClick={() => setCapture(ctx())}>
           <Plus size={16} /> Beobachtung
         </Button>
@@ -123,6 +131,7 @@ function Akte({ id }: { id: string }) {
           { value: 'kompetenzen', label: 'Kompetenzen' },
           { value: 'verhalten', label: 'Verhalten' },
           { value: 'ziele', label: 'Ziele' },
+          { value: 'zeugnis', label: 'Zeugnistext' },
           { value: 'profil', label: 'Profil' },
         ]}
       />
@@ -131,7 +140,15 @@ function Akte({ id }: { id: string }) {
       {tab === 'kompetenzen' && <CompetencyProfile obs={obs} comps={comps} />}
       {tab === 'verhalten' && <Behaviour obs={obs} />}
       {tab === 'ziele' && <Goals student={student} comps={comps} />}
+      {tab === 'zeugnis' && <ZeugnisTab student={student} cls={cls} obs={allObs} comps={comps} />}
       {tab === 'profil' && <Profile student={student} />}
+      <AskSheet
+        open={asking}
+        onClose={() => setAsking(false)}
+        title={`Frage zu ${student.firstName}`}
+        placeholder={`Wie hat sich ${student.firstName} in Mathe seit September entwickelt?`}
+        data={() => studentContext(student, cls, allObs, comps, goals)}
+      />
 
       <QuickCapture ctx={capture} onClose={() => setCapture(null)} />
     </div>
@@ -421,6 +438,25 @@ function Profile({ student }: { student: Student }) {
       <div className="mt-4 flex justify-end">
         <Button onClick={() => save(db.students, s)}>Speichern</Button>
       </div>
+    </Card>
+  )
+}
+
+function ZeugnisTab({ student, cls, obs, comps }: { student: Student; cls: SchoolClass; obs: Observation[]; comps: Competency[] }) {
+  const [term, setTerm] = useState<string>(cls.gradeLevel === 4 ? 'Übertrittszeugnis' : 'Jahreszeugnis')
+  const [du, setDu] = useState(cls.gradeLevel <= 2)
+  return (
+    <Card title={`Zeugnistext · ${cls.gradeLevel <= 2 ? 'Wortgutachten' : 'Bemerkungen'}`}>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <Segmented value={term} onChange={setTerm} options={TERMS.map((t) => ({ value: t, label: t }))} />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={du} onChange={(e) => setDu(e.target.checked)} className="accent-brand-700" /> Kind mit „Du“ ansprechen
+        </label>
+        <Link to="/zeugnis" className="ml-auto text-sm text-brand-700 underline">
+          Alle Kinder der Klasse
+        </Link>
+      </div>
+      <ReportEditor key={term} student={student} cls={cls} obs={obs} comps={comps} term={term} du={du} />
     </Card>
   )
 }

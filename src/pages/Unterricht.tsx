@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Eye, EyeOff, Grid3x3, LayoutGrid, Play, Square, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { AiButton, DictationSheet } from '../components/AiSheets'
 import { ReflectionSheet, StartLessonSheet } from '../components/LessonSheets'
 import { QuickCapture, quickSave, type CaptureContext } from '../components/QuickCapture'
 import { AttachmentView } from '../components/media'
@@ -90,6 +91,8 @@ function LiveMode({ lesson, students, obs, comps, gradeLevel }: { lesson: Lesson
   const [selected, setSelected] = useState<string[]>([])
   const [capture, setCapture] = useState<CaptureContext | null>(null)
   const [ending, setEnding] = useState(false)
+  const [dictating, setDictating] = useState(false)
+  const { cls } = useActiveClass()
   const elapsed = useElapsed(lesson.startedAt)
 
   const inLesson = useMemo(() => obs.filter((o) => o.lessonId === lesson.id), [obs, lesson.id])
@@ -162,6 +165,7 @@ function LiveMode({ lesson, students, obs, comps, gradeLevel }: { lesson: Lesson
         <Button variant="secondary" size="sm" onClick={() => setDiscreet((d) => !d)} aria-label="Diskret">
           {discreet ? <EyeOff size={16} /> : <Eye size={16} />}
         </Button>
+        <AiButton onClick={() => setDictating(true)}>Diktat</AiButton>
         <Button variant="danger" size="sm" onClick={() => setEnding(true)}>
           <Square size={14} /> Beenden
         </Button>
@@ -210,6 +214,7 @@ function LiveMode({ lesson, students, obs, comps, gradeLevel }: { lesson: Lesson
         }}
       />
       <ReflectionSheet lesson={lesson} open={ending} onClose={() => setEnding(false)} students={students} observations={obs} />
+      {dictating && cls && <DictationSheet open onClose={() => setDictating(false)} cls={cls} students={students} comps={comps} lessonId={lesson.id} subject={lesson.subject} />}
     </div>
   )
 }

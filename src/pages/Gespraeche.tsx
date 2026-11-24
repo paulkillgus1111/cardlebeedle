@@ -5,10 +5,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Printer } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AiButton } from '../components/AiSheets'
 import { AttachmentView } from '../components/media'
 import { toast } from '../components/toast'
 import { Avatar, Button, Card, Empty, Field, inputCls, Segmented, ValenceDot } from '../components/ui'
 import { alive, db, now, save, uid, type Conversation, type Goal, type Observation } from '../lib/db'
+import { ai, studentContext } from '../lib/ai'
 import { useActiveClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
 import { latestLevels, today } from '../lib/insights'
 import { gradeProfile, KIND_LABEL, LEG_SECTIONS, LEVEL_LABEL } from '../lib/seed'
@@ -40,7 +42,12 @@ function Overview() {
   const season = convs.filter((c) => c.type === 'leg')
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold">Gespräche</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Gespräche</h1>
+        <Link to="/zeugnis">
+          <Button variant="secondary">Zeugnistexte</Button>
+        </Link>
+      </div>
       {profile.legPossible && (
         <Card title={`LEG-Saisonplaner · Jgst. ${cls.gradeLevel}`} action={<span className="text-xs text-slate-400">{season.filter((c) => c.status !== 'vorbereitung').length}/{students.length} geführt</span>}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -163,6 +170,7 @@ function Editor({ id }: { id: string }) {
   const [mode, setMode] = useState<'vorbereitung' | 'gespraech'>('vorbereitung')
   const [since, setSince] = useState('')
   const [newGoal, setNewGoal] = useState('')
+  const [drafting, setDrafting] = useState(false)
 
   useEffect(() => {
     if (conv && (!draft || draft.id !== conv.id)) setDraft(conv)
@@ -186,6 +194,32 @@ function Editor({ id }: { id: string }) {
   const describe = (o: Observation) => {
     const c = comps.find((x) => x.id === o.competencyId)
     return [c?.text, o.level ? LEVEL_LABEL[o.level] : '', o.text].filter(Boolean).join(' – ')
+  }
+
+  const draftAll = async () => {
+    setDrafting(true)
+    try {
+      const res = await ai<{ json: { sections: { id: string; text: string }[] } }>('leg', {
+        gespraech: TYPE_LABEL[draft.type],
+        abschnitte: sections.map((s) => ({ id: s.id, titel: s.title, hinweis: s.hint })),
+        ...studentContext(student, cls, obs, comps, goals),
+        selbsteinschaetzung: draft.selfAssessment,
+        ziele_letztes_gespraech: openGoals.map((g) => `${g.text} (${g.status})`),
+      })
+      const next = { ...draft.sections }
+      let filled = 0
+      for (const sec of res.json.sections) {
+        if (!sections.some((s) => s.id === sec.id)) continue
+        next[sec.id] = next[sec.id]?.trim() ? `${next[sec.id]}\n\n— KI-Entwurf —\n${sec.text}` : sec.text
+        filled++
+      }
+      setDraft({ ...draft, sections: next })
+      toast(`${filled} Abschnitte entworfen – bitte prüfen und speichern`)
+    } catch (e) {
+      toast((e as Error).message)
+    } finally {
+      setDrafting(false)
+    }
   }
 
   // Selbsteinschätzung aus eingeschätzten Kompetenzen vorschlagen
@@ -216,6 +250,9 @@ function Editor({ id }: { id: string }) {
             { value: 'gespraech', label: 'Gesprächsansicht' },
           ]}
         />
+        <AiButton size="md" busy={drafting} onClick={draftAll}>
+          KI-Entwurf
+        </AiButton>
         <Button variant="secondary" onClick={() => window.print()}>
           <Printer size={16} /> Drucken / PDF
         </Button>

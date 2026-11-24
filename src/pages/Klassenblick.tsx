@@ -2,7 +2,9 @@ import clsx from 'clsx'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AiTextSheet } from '../components/AiSheets'
 import { Avatar, Card, Empty, Segmented } from '../components/ui'
+import { ai, obsLine } from '../lib/ai'
 import { alive, db } from '../lib/db'
 import { useActiveClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
 import { daysAgo, latestLevels } from '../lib/insights'
@@ -20,6 +22,7 @@ export default function Klassenblick() {
   const [subject, setSubject] = useState('Mathematik')
 
   const latest = useMemo(() => latestLevels(obs), [obs])
+  const [foerder, setFoerder] = useState<{ comp: string; subject: string; kinder: string[] } | null>(null)
   if (!cls) return null
 
   const ratedComps = comps.filter((c) => c.subject === subject && students.some((s) => latest.has(`${s.id}:${c.id}`)))
@@ -49,6 +52,20 @@ export default function Klassenblick() {
           ]}
         />
       </div>
+
+      {foerder && cls && (
+        <AiTextSheet
+          open
+          onClose={() => setFoerder(null)}
+          title={`Förderideen: ${foerder.comp}`}
+          deps={[foerder.comp]}
+          run={async () => {
+            const comp = comps.find((c) => c.text === foerder.comp)
+            const beobachtungen = obs.filter((o) => o.competencyId === comp?.id || (o.subject === foerder.subject && o.valence === 'neg')).slice(0, 60).map((o) => obsLine(o, comps, students))
+            return (await ai('foerder', { jahrgangsstufe: cls.gradeLevel, fach: foerder.subject, kompetenz: foerder.comp, betroffene_kinder: foerder.kinder, beobachtungen })).text
+          }}
+        />
+      )}
 
       {view === 'kompetenzen' && (
         <>
@@ -88,11 +105,18 @@ export default function Klassenblick() {
                   ))}
                   <tr className="border-t-2 border-slate-200">
                     <td className="sticky left-0 bg-white p-2 text-xs text-slate-500">unsicher (≤ teilweise)</td>
-                    {ratedComps.map((c) => (
-                      <td key={c.id} className="text-center text-xs font-semibold text-rose-600">
-                        {students.filter((s) => (latest.get(`${s.id}:${c.id}`)?.level ?? 9) <= 2).length || ''}
-                      </td>
-                    ))}
+                    {ratedComps.map((c) => {
+                      const weak = students.filter((s) => (latest.get(`${s.id}:${c.id}`)?.level ?? 9) <= 2)
+                      return (
+                        <td key={c.id} className="text-center text-xs font-semibold text-rose-600">
+                          {weak.length > 0 && (
+                            <button onClick={() => setFoerder({ comp: c.text, subject: c.subject, kinder: weak.map((s) => s.firstName) })} className="rounded-md px-1.5 py-1 hover:bg-violet-50" title="Förderideen (KI)">
+                              {weak.length} ✨
+                            </button>
+                          )}
+                        </td>
+                      )
+                    })}
                   </tr>
                 </tbody>
               </table>

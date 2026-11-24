@@ -9,6 +9,7 @@ import Gespraeche from './pages/Gespraeche'
 import Kinder from './pages/Kinder'
 import Klassenblick from './pages/Klassenblick'
 import Unterricht from './pages/Unterricht'
+import Zeugnis from './pages/Zeugnis'
 
 export default function App() {
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="gespraeche" element={<Gespraeche />} />
           <Route path="gespraeche/:id" element={<Gespraeche />} />
           <Route path="gespraeche/:id/:studentId" element={<Gespraeche />} />
+          <Route path="zeugnis" element={<Zeugnis />} />
           <Route path="einstellungen" element={<Einstellungen />} />
         </Route>
       </Routes>
