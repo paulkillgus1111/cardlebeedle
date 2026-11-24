@@ -1,4 +1,4 @@
-# Lehrer-Cockpit
+# Cardle Beedle
 
 Persönliches Cockpit für Unterrichtsbeobachtung und -dokumentation (Grundschule Bayern, Jgst. 1–4). Plan: siehe [PLAN.md](PLAN.md).
 

@@ -92,7 +92,7 @@ export function Layout() {
         <div className="mb-5 flex items-center gap-2.5 px-2">
           <img src="/favicon.svg" alt="" className="size-8 rounded-[10px] shadow-[var(--shadow-glow)]" />
           <div className="leading-tight">
-            <p className="text-[15px] font-semibold tracking-tight">Lehrer-Cockpit</p>
+            <p className="text-[15px] font-semibold tracking-tight">Cardle Beedle</p>
             <p className="text-xs text-slate-500">Beobachten · Dokumentieren</p>
           </div>
         </div>
