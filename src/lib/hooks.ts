@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useSyncExternalStore } from 'react'
 import { alive, db, type Competency, type Observation, type SchoolClass, type Student } from './db'
-import { bandFor } from './seed'
+import { bandFor, compareCompetencies } from './seed'
 
 const KEY = 'activeClassId'
 const listeners = new Set<() => void>()
@@ -38,7 +38,9 @@ export function useActiveClass(): { cls?: SchoolClass; loading: boolean } {
   const id = useActiveClassId()
   const classes = useClasses()
   if (!classes) return { loading: true }
-  return { cls: classes.find((c) => c.id === id) ?? classes[0], loading: false }
+  const found = classes.find((c) => c.id === id)
+  if (!found && classes[0] && id !== classes[0].id) queueMicrotask(() => setActiveClassId(classes[0].id))
+  return { cls: found ?? classes[0], loading: false }
 }
 
 export function useStudents(classId?: string): Student[] {
@@ -69,7 +71,16 @@ export function useCompetencies(cls?: SchoolClass): Competency[] {
     useLiveQuery(async () => {
       if (!cls) return []
       const band = bandFor(cls.gradeLevel)
-      return alive(await db.competencies.where('band').equals(band).toArray())
+      return alive(await db.competencies.where('band').equals(band).toArray()).sort(compareCompetencies)
     }, [cls?.id, cls?.gradeLevel]) ?? []
   )
+}
+
+/** Klasse eines bestimmten Datensatzes (nicht unbedingt die aktive). */
+export function useClass(id?: string): SchoolClass | undefined {
+  return useLiveQuery(async () => {
+    if (!id) return undefined
+    const c = await db.classes.get(id)
+    return c && !c.deleted ? c : undefined
+  }, [id])
 }

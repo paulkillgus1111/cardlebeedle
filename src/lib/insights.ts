@@ -3,7 +3,7 @@ import type { Competency, Goal, Observation, Student } from './db'
 
 export const today = () => formatISO(new Date(), { representation: 'date' })
 export const daysAgo = (n: number) => formatISO(subDays(new Date(), n), { representation: 'date' })
-export const daysSince = (iso?: string) => (iso ? differenceInCalendarDays(new Date(), parseISO(iso)) : Infinity)
+export const daysSince = (iso?: string) => (iso ? Math.max(0, differenceInCalendarDays(new Date(), parseISO(iso))) : Infinity)
 
 export interface StudentStats {
   student: Student
@@ -67,7 +67,7 @@ export function signals(students: Student[], obs: Observation[], comps: Competen
   const out: Signal[] = []
   const d14 = daysAgo(14)
   const d30 = daysAgo(30)
-  const name = (id: string) => students.find((s) => s.id === id)?.firstName ?? '?'
+  const name = (id: string) => students.find((s) => s.id === id)?.firstName
 
   for (const s of students) {
     const mine = obs.filter((o) => o.studentIds.includes(s.id))
@@ -75,11 +75,15 @@ export function signals(students: Student[], obs: Observation[], comps: Competen
     if (neg14 >= 3) out.push({ id: `neg-${s.id}`, tone: 'warn', studentId: s.id, text: `${s.firstName}: ${neg14} kritische Einträge in 14 Tagen` })
     const last = mine.reduce<string | undefined>((m, o) => (!m || o.date > m ? o.date : m), undefined)
     const d = daysSince(last)
-    if (d >= 14) out.push({ id: `gap-${s.id}`, tone: 'info', studentId: s.id, text: d === Infinity ? `${s.firstName}: noch keine Beobachtung` : `${s.firstName}: seit ${d} Tagen nicht beobachtet` })
+    if (d >= 14 && d !== Infinity) out.push({ id: `gap-${s.id}`, tone: 'info', studentId: s.id, text: `${s.firstName}: seit ${d} Tagen nicht beobachtet` })
     const behaviour = mine.filter((o) => o.date >= d30 && (o.kind === 'sozialverhalten' || o.kind === 'arbeitsverhalten'))
     if (behaviour.length >= 4 && behaviour.every((o) => o.valence === 'pos'))
       out.push({ id: `pos-${s.id}`, tone: 'good', studentId: s.id, text: `${s.firstName}: im Verhalten seit 30 Tagen nur positiv – Ziel erreicht?` })
   }
+
+  const never = students.filter((s) => !obs.some((o) => o.studentIds.includes(s.id)))
+  if (never.length)
+    out.push({ id: 'never', tone: 'info', text: never.length === students.length ? 'Noch keine Beobachtungen – starte eine Stunde oder tippe auf „Beobachtung“.' : `Noch nie beobachtet: ${never.map((s) => s.firstName).join(', ')}` })
 
   // Kompetenzen, bei denen viele Kinder (noch) unsicher sind – jeweils letzter Stand je Kind
   const latest = latestLevels(obs.filter((o) => o.date >= d30))
@@ -87,11 +91,11 @@ export function signals(students: Student[], obs: Observation[], comps: Competen
     const levels = students.map((s) => latest.get(`${s.id}:${c.id}`)?.level).filter((l): l is 1 | 2 | 3 | 4 => !!l)
     if (levels.length < 3) continue
     const weak = levels.filter((l) => l <= 2).length
-    if (weak / students.length >= 0.3)
+    if (weak >= 2 && weak / levels.length >= 0.3)
       out.push({ id: `comp-${c.id}`, tone: 'warn', competencyId: c.id, text: `${weak} Kinder unsicher: ${c.text}` })
   }
 
-  const due = goals.filter((g) => g.status === 'offen' && g.due && g.due <= today())
+  const due = goals.filter((g) => g.status === 'offen' && g.due && g.due <= today() && name(g.studentId))
   for (const g of due) out.push({ id: `goal-${g.id}`, tone: 'info', studentId: g.studentId, text: `${name(g.studentId)}: Ziel fällig – „${g.text}“` })
 
   const order = { warn: 0, info: 1, good: 2 }

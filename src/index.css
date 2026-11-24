@@ -1,13 +1,98 @@
+@import '@fontsource-variable/inter';
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --font-sans: ui-sans-serif, -apple-system, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
-  --color-brand-50: #f0fdfa;
-  --color-brand-100: #ccfbf1;
-  --color-brand-500: #14b8a6;
-  --color-brand-600: #0d9488;
-  --color-brand-700: #0f766e;
-  --color-brand-900: #134e4a;
+  --font-sans: 'Inter Variable', ui-sans-serif, -apple-system, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+
+  /* Markenfarbe: ruhiges Petrol */
+  --color-brand-50: #effcf9;
+  --color-brand-100: #c9f5ec;
+  --color-brand-200: #94e9d9;
+  --color-brand-300: #57d4bf;
+  --color-brand-400: #29b8a3;
+  --color-brand-500: #129c89;
+  --color-brand-600: #0b7d6f;
+  --color-brand-700: #0d645a;
+  --color-brand-800: #0f504a;
+  --color-brand-900: #10423e;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 1px rgb(15 23 42 / 0.03);
+  --shadow-pop: 0 20px 50px -12px rgb(15 23 42 / 0.25), 0 4px 12px -4px rgb(15 23 42 / 0.08);
+  --shadow-glow: 0 6px 20px -6px rgb(13 100 90 / 0.45);
+
+  --animate-sheet-in: sheet-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-pop-in: pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+
+  @keyframes sheet-in {
+    from { transform: translateY(24px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop-in {
+    from { transform: scale(0.96); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+}
+
+/*
+ * Dark Mode: Tailwind v4 nutzt CSS-Variablen für Farben. Die neutrale Palette
+ * und die hellen Tönungen werden hier umgedreht – so funktionieren alle
+ * bestehenden Klassen (bg-white, text-slate-600, bg-emerald-50 …) automatisch.
+ */
+@layer theme {
+  .dark {
+    color-scheme: dark;
+    --color-white: #161b22;
+    --color-slate-50: #1b2129;
+    --color-slate-100: #222a33;
+    --color-slate-200: #2c3540;
+    --color-slate-300: #3d4855;
+    --color-slate-400: #6b7785;
+    --color-slate-500: #8b96a3;
+    --color-slate-600: #a7b1bc;
+    --color-slate-700: #c3cbd4;
+    --color-slate-800: #dde3e9;
+    --color-slate-900: #eef2f6;
+
+    --color-brand-50: rgb(41 184 163 / 0.12);
+    --color-brand-100: rgb(41 184 163 / 0.22);
+    --color-brand-700: #3cc7b1;
+    --color-emerald-50: rgb(16 185 129 / 0.12);
+    --color-emerald-100: rgb(16 185 129 / 0.2);
+    --color-emerald-200: rgb(16 185 129 / 0.3);
+    --color-emerald-800: #6ee7b7;
+    --color-rose-50: rgb(244 63 94 / 0.12);
+    --color-rose-100: rgb(244 63 94 / 0.2);
+    --color-rose-200: rgb(244 63 94 / 0.3);
+    --color-rose-700: #fda4af;
+    --color-rose-800: #fda4af;
+    --color-amber-50: rgb(245 158 11 / 0.12);
+    --color-amber-100: rgb(245 158 11 / 0.2);
+    --color-amber-200: rgb(245 158 11 / 0.3);
+    --color-amber-800: #fcd34d;
+    --color-amber-900: #fde68a;
+    --color-lime-100: rgb(132 204 22 / 0.2);
+    --color-lime-200: rgb(132 204 22 / 0.3);
+    --color-lime-800: #bef264;
+    --color-sky-50: rgb(14 165 233 / 0.12);
+    --color-sky-100: rgb(14 165 233 / 0.2);
+    --color-sky-800: #7dd3fc;
+    --color-violet-50: rgb(139 92 246 / 0.12);
+    --color-violet-100: rgb(139 92 246 / 0.2);
+    --color-violet-700: #c4b5fd;
+    --color-violet-800: #c4b5fd;
+    --color-cyan-100: rgb(6 182 212 / 0.2);
+    --color-cyan-800: #67e8f9;
+    --color-orange-100: rgb(249 115 22 / 0.2);
+    --color-orange-800: #fdba74;
+    --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02);
+  }
 }
 
 html,
@@ -17,13 +102,26 @@ body,
 }
 
 body {
-  background: #f6f7f9;
-  color: #0f172a;
+  background: var(--app-bg, #f4f6f8);
+  color: var(--color-slate-900);
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
+.dark body,
+body:has(.dark) {
+  --app-bg: #0d1117;
+}
+html.dark {
+  --app-bg: #0d1117;
+}
 
-/* Diskreter Modus im Unterricht: Texte unkenntlich, bis man darauf tippt */
+::selection {
+  background: var(--color-brand-100);
+}
+
+/* Diskreter Modus im Unterricht */
 .discreet .blur-sensitive {
   filter: blur(6px);
 }
@@ -31,4 +129,21 @@ body {
 button {
   cursor: pointer;
   touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+/* Dezente Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-slate-300) transparent;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
 }
