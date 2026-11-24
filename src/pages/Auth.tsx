@@ -1,11 +1,11 @@
 import clsx from 'clsx'
-import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, LogIn, Mail, UserPlus, X } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, LogIn, Mail, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { authError, forgetAccount, knownAccounts, rememberAccount } from '../lib/auth'
 import { supabase } from '../lib/sync'
 import { Button, Field, inputCls } from '../components/ui'
 
-type Mode = 'login' | 'signup' | 'reset'
+type Mode = 'login' | 'reset'
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -46,14 +46,6 @@ export default function AuthScreen() {
         const { error } = await supabase.auth.signInWithPassword({ email: mail, password })
         if (error) throw error
         rememberAccount(mail)
-      } else if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email: mail, password, options: { emailRedirectTo: location.origin } })
-        if (error) throw error
-        rememberAccount(mail)
-        if (!data.session) {
-          setInfo('Fast geschafft: Wir haben dir eine E-Mail geschickt. Öffne den Link darin und melde dich dann hier an.')
-          setMode('login')
-        }
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(mail, { redirectTo: location.origin })
         if (error) throw error
@@ -67,7 +59,7 @@ export default function AuthScreen() {
     }
   }
 
-  const title = { login: 'Anmelden', signup: 'Konto anlegen', reset: 'Passwort zurücksetzen' }[mode]
+  const title = { login: 'Anmelden', reset: 'Passwort zurücksetzen' }[mode]
 
   return (
     <Shell>
@@ -115,14 +107,14 @@ export default function AuthScreen() {
           </div>
         </Field>
         {mode !== 'reset' && (
-          <Field label="Passwort" hint={mode === 'signup' ? 'Mindestens 6 Zeichen.' : undefined}>
+          <Field label="Passwort">
             <div className="relative">
               <KeyRound size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 type={show ? 'text' : 'password'}
                 required
                 minLength={6}
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={clsx(inputCls, 'pr-11 pl-10')}
@@ -139,16 +131,14 @@ export default function AuthScreen() {
         {info && <p className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-800">{info}</p>}
 
         <Button type="submit" size="lg" className="w-full" disabled={busy}>
-          {busy ? <Loader2 size={18} className="animate-spin" /> : mode === 'login' ? <LogIn size={18} /> : mode === 'signup' ? <UserPlus size={18} /> : <Mail size={18} />}
-          {mode === 'login' ? 'Anmelden' : mode === 'signup' ? 'Konto anlegen' : 'Link senden'}
+          {busy ? <Loader2 size={18} className="animate-spin" /> : mode === 'login' ? <LogIn size={18} /> : <Mail size={18} />}
+          {mode === 'login' ? 'Anmelden' : 'Link senden'}
         </Button>
       </form>
 
       {mode === 'login' && (
         <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-5 text-sm">
-          <button onClick={() => (setMode('signup'), setError(''), setPassword(''))} className="font-medium text-brand-700 hover:underline">
-            Neues Konto anlegen
-          </button>
+          <span className="text-slate-400">Zugänge werden zentral vergeben.</span>
           <button onClick={() => (setMode('reset'), setError(''))} className="text-slate-500 hover:text-slate-800">
             Passwort vergessen?
           </button>

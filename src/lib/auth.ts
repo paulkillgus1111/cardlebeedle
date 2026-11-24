@@ -37,6 +37,7 @@ export async function signOut() {
 export function authError(msg: string) {
   const m = msg.toLowerCase()
   if (m.includes('invalid login credentials')) return 'E-Mail oder Passwort stimmt nicht.'
+  if (m.includes('signups not allowed') || m.includes('signup is disabled')) return 'Neue Konten werden nur zentral angelegt.'
   if (m.includes('email not confirmed')) return 'Bitte zuerst den Link in der Bestätigungs-Mail öffnen.'
   if (m.includes('user already registered')) return 'Für diese E-Mail gibt es schon ein Konto – bitte anmelden.'
   if (m.includes('password should be')) return 'Das Passwort muss mindestens 6 Zeichen haben.'
