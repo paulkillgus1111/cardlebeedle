@@ -188,8 +188,8 @@ export class CockpitDB extends Dexie {
   conversations!: Table<Conversation, ID>
   meta!: Table<Meta, string>
 
-  constructor() {
-    super('lehrer-cockpit')
+  constructor(name: string) {
+    super(name)
     this.version(1).stores({
       classes: 'id, updatedAt, dirty',
       students: 'id, classId, updatedAt, dirty',
@@ -205,7 +205,40 @@ export class CockpitDB extends Dexie {
   }
 }
 
-export const db = new CockpitDB()
+/** Lokale Datenbank des angemeldeten Kontos (wird nach dem Login gesetzt). */
+export let db = new CockpitDB('cardle-beedle-guest')
+
+const LEGACY_DB = 'lehrer-cockpit'
+
+/** Öffnet die eigene lokale Datenbank für ein Konto – jedes Konto hat getrennte Daten auf dem Gerät. */
+export async function openUserDb(userId: string) {
+  const key = `dbName:${userId}`
+  let name: string | null = null
+  try {
+    name = localStorage.getItem(key)
+  } catch {
+    /* ignorieren */
+  }
+  if (!name) {
+    name = `cardle-beedle-${userId}`
+    // Daten aus der Zeit vor dem Login übernimmt das erste Konto, das sich anmeldet
+    try {
+      if (!localStorage.getItem('legacyDbClaimedBy') && (await Dexie.exists(LEGACY_DB))) {
+        name = LEGACY_DB
+        localStorage.setItem('legacyDbClaimedBy', userId)
+      }
+      localStorage.setItem(key, name)
+    } catch {
+      /* ignorieren */
+    }
+  }
+  if (db.name !== name || !db.isOpen()) {
+    if (db.isOpen()) db.close()
+    db = new CockpitDB(name)
+    await db.open()
+  }
+  return db
+}
 
 export const SYNCED_TABLES = [
   'classes',

@@ -71,9 +71,9 @@ async function doSync(): Promise<SyncResult> {
   const user = auth.user
   if (!user) throw new Error('Nicht angemeldet')
 
-  // Gerät gehört einem Konto: bei Kontowechsel nicht vermischen
+  // Sicherheitsnetz: die geöffnete lokale Datenbank muss zu diesem Konto gehören
   const owner = await getMeta<string | null>('ownerUserId', null)
-  if (owner && owner !== user.id) throw new Error('Auf diesem Gerät liegen Daten eines anderen Kontos. Bitte erst mit dem ursprünglichen Konto anmelden.')
+  if (owner && owner !== user.id) throw new Error('Lokale Daten gehören zu einem anderen Konto.')
   if (!owner) await setMeta('ownerUserId', user.id)
 
   let pushed = 0

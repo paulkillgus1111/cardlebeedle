@@ -52,6 +52,7 @@ import {
 import { setActiveClassId, useActiveClass, useClasses, useStudents } from '../lib/hooks'
 import { bandFor, KIND_LABEL, SUBJECTS_BY_GRADE } from '../lib/seed'
 import { supabase, sync } from '../lib/sync'
+import { signOut as signOutLocal } from '../lib/auth'
 import { setTheme, useTheme, type ThemePref } from '../lib/theme'
 
 type Tab = 'klasse' | 'kinder' | 'sitzplan' | 'vorlagen' | 'kompetenzen' | 'darstellung' | 'konto'
@@ -1011,12 +1012,9 @@ function Konto() {
               </div>
               <Button
                 variant="ghost"
-                onClick={async () => {
-                  await supabase.auth.signOut()
-                  toast('Abgemeldet – deine Daten bleiben auf diesem Gerät.')
-                }}
+                onClick={() => signOutLocal()}
               >
-                <LogOut size={16} /> Abmelden
+                <LogOut size={16} /> Abmelden / Konto wechseln
               </Button>
             </div>
             {syncErrors.length > 0 && (

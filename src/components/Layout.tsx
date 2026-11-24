@@ -1,12 +1,13 @@
 import clsx from 'clsx'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronDown, Cloud, CloudOff, Gauge, Grid3x3, Loader2, MessagesSquare, Moon, Presentation, Settings, Sun, Users } from 'lucide-react'
+import { ChevronDown, Cloud, CloudOff, LogOut, Gauge, Grid3x3, Loader2, MessagesSquare, Moon, Presentation, Settings, Sun, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { db } from '../lib/db'
 import { setActiveClassId, useActiveClass, useClasses } from '../lib/hooks'
 import { supabase, sync } from '../lib/sync'
 import { setTheme, useTheme } from '../lib/theme'
+import { signOut } from '../lib/auth'
 
 const NAV: { to: string; label: string; short?: string; icon: typeof Gauge; end?: boolean }[] = [
   { to: '/', label: 'Cockpit', icon: Gauge, end: true },
@@ -130,6 +131,7 @@ export function Layout() {
           <div className="px-2.5">
             <SyncBadge state={state} dirty={dirty} />
           </div>
+          <AccountRow />
         </div>
       </aside>
 
@@ -182,5 +184,24 @@ function SyncBadge({ state, dirty, compact }: { state: string; dirty: number; co
               ? `${dirty} Änderungen offen`
               : 'Alles synchronisiert'}
     </span>
+  )
+}
+
+function AccountRow() {
+  const [email, setEmail] = useState<string | undefined>()
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email))
+  }, [])
+  if (!email) return null
+  return (
+    <div className="flex items-center gap-2 rounded-xl bg-slate-100/70 p-2 pl-2.5">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-semibold !text-[#fff]">{email[0]?.toUpperCase()}</span>
+      <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-600" title={email}>
+        {email}
+      </span>
+      <button onClick={() => signOut()} title="Abmelden / Konto wechseln" aria-label="Abmelden" className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700">
+        <LogOut size={15} />
+      </button>
+    </div>
   )
 }
