@@ -30,7 +30,7 @@ import { QuickCapture, quickSave, type CaptureContext } from '../components/Quic
 import { AttachmentView } from '../components/media'
 import { toast } from '../components/toast'
 import { Avatar, Badge, Button, Card, Empty, PageHeader, Segmented, ValenceDot } from '../components/ui'
-import { alive, aliveOne, db, type Competency, type Lesson, type Observation, type SchoolClass, type Student } from '../lib/db'
+import { alive, aliveOne, db, remove, save, type Competency, type Lesson, type Observation, type SchoolClass, type Student } from '../lib/db'
 import { useActiveClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
 import { latestLevels } from '../lib/insights'
 import { KIND_LABEL, LEVEL_LABEL } from '../lib/seed'
@@ -252,7 +252,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
     else setCapture(ctx([s.id]))
   }
 
-  const tile = (s: Student) => {
+  const tile = (s: Student, compact = false) => {
     const mine = inLesson.filter((o) => o.studentIds.includes(s.id))
     const sel = selected.includes(s.id)
     const dim = !isFocus(s) && !sel
@@ -264,8 +264,9 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
         aria-pressed={multi ? sel : undefined}
         aria-label={`${s.firstName}${mine.length ? `, ${mine.length} Einträge` : ''}`}
         className={clsx(
-          'relative flex h-full min-h-[120px] w-full flex-col items-center justify-center gap-1.5 rounded-2xl p-2 shadow-[var(--shadow-card)] ring-1 transition duration-150 select-none active:scale-[0.96]',
+          'relative flex h-full w-full flex-col items-center justify-center rounded-2xl shadow-[var(--shadow-card)] ring-1 transition duration-150 select-none active:scale-[0.96]',
           sel ? 'bg-brand-50 ring-2 ring-brand-500' : 'bg-white ring-slate-200/80 hover:ring-slate-300',
+          compact ? 'min-h-[104px] gap-1 p-1.5' : 'min-h-[120px] gap-1.5 p-2',
           dim && 'opacity-45',
         )}
       >
@@ -277,12 +278,10 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
         {mine.length > 0 && (
           <span className="blur-sensitive absolute top-2 right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-100 px-1.5 text-xs font-semibold text-slate-600 tabular-nums">{mine.length}</span>
         )}
-        <Avatar student={s} size={52} />
-        <span className="max-w-full truncate text-[15px] font-medium text-slate-900">{s.firstName}</span>
-        <span className="blur-sensitive flex h-2 items-center gap-1">
-          {mine.slice(0, 6).map((o) => (
-            <ValenceDot key={o.id} v={o.valence} />
-          ))}
+        <Avatar student={s} size={compact ? 40 : 52} />
+        <span className={clsx('max-w-full truncate font-medium text-slate-900', compact ? 'text-[13px]' : 'text-[15px]')}>{s.firstName}</span>
+        <span className="flex h-2 items-center gap-1">
+          {!discreet && mine.slice(0, compact ? 4 : 6).map((o) => <ValenceDot key={o.id} v={o.valence} />)}
         </span>
       </button>
     )
@@ -290,7 +289,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
 
   const tileGrid = (list: Student[]) => (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3" style={{ gridAutoRows: 'minmax(128px, auto)' }}>
-      {list.map(tile)}
+      {list.map((s) => tile(s))}
     </div>
   )
 
@@ -300,17 +299,20 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
     <div className={clsx('flex h-full min-h-0 flex-col', discreet && 'discreet')}>
       {/* Toolbar */}
       <div className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 md:px-5">
+        <div className="flex flex-col gap-2 px-3 py-2.5 md:px-5 xl:flex-row xl:items-center xl:gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
           <Link to="/unterricht" aria-label="Zurück zum Unterrichtstagebuch" className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900">
             <ChevronLeft size={20} />
           </Link>
           <div className="min-w-0 flex-1">
             <p className="flex min-w-0 items-center gap-2 leading-tight">
               <span className={clsx('size-2.5 shrink-0 rounded-full', subjectDot(lesson.subject))} />
-              <span className="shrink-0 font-semibold tracking-tight text-slate-900">{lesson.subject}</span>
-              {lesson.topic && <span className="truncate text-slate-500">· {lesson.topic}</span>}
+              <span className="min-w-0 truncate">
+                <span className="font-semibold tracking-tight text-slate-900">{lesson.subject}</span>
+                {lesson.topic && <span className="text-slate-500"> · {lesson.topic}</span>}
+              </span>
             </p>
-            <p className="blur-sensitive mt-0.5 flex min-w-0 items-center gap-2 text-xs text-slate-500">
+            <p className="blur-sensitive mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
               <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-brand-50 px-1.5 py-0.5 font-semibold text-brand-700 tabular-nums">
                 <Clock size={12} /> {elapsed} min
               </span>
@@ -324,6 +326,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
               )}
             </p>
           </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Segmented
               value={view}
@@ -334,7 +337,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
                   label: (
                     <span className="inline-flex items-center gap-1.5">
                       <LayoutGrid size={16} />
-                      <span className="sr-only lg:not-sr-only">Sitzplan</span>
+                      Sitzplan
                     </span>
                   ),
                 },
@@ -343,7 +346,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
                   label: (
                     <span className="inline-flex items-center gap-1.5">
                       <Grid3x3 size={16} />
-                      <span className="sr-only lg:not-sr-only">Raster</span>
+                      Raster
                     </span>
                   ),
                 },
@@ -397,16 +400,24 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
         ) : view === 'sitzplan' ? (
           layout && plan ? (
             <div className="space-y-6">
-              <div className="overflow-x-auto pb-1">
-                <div className="mb-2 flex justify-center">
-                  <span className="rounded-full bg-slate-100 px-4 py-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Tafel</span>
+              <div className="relative">
+                <div className="overflow-x-auto pb-1">
+                  <div className="mb-2 flex justify-center">
+                    <span className="rounded-full bg-slate-100 px-4 py-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Tafel</span>
+                  </div>
+                  <div className="grid gap-2 md:gap-3" style={{ gridTemplateColumns: `repeat(${plan.cols}, minmax(64px, 1fr))`, gridAutoRows: 'minmax(104px, auto)', minWidth: plan.cols * 72 }}>
+                    {Array.from({ length: plan.rows * plan.cols }, (_, i) => {
+                      const s = layout.cells.get(`${i % plan.cols}:${Math.floor(i / plan.cols)}`)
+                      return s ? <div key={i}>{tile(s, true)}</div> : <div key={i} className="rounded-2xl bg-slate-100/50 ring-1 ring-slate-200/50 ring-dashed" aria-hidden />
+                    })}
+                  </div>
                 </div>
-                <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${plan.cols}, minmax(104px, 1fr))`, gridAutoRows: '128px' }}>
-                  {Array.from({ length: plan.rows * plan.cols }, (_, i) => {
-                    const s = layout.cells.get(`${i % plan.cols}:${Math.floor(i / plan.cols)}`)
-                    return s ? <div key={i}>{tile(s)}</div> : <div key={i} className="rounded-2xl bg-slate-100/50 ring-1 ring-slate-200/50 ring-dashed" aria-hidden />
-                  })}
-                </div>
+                {plan.cols > 4 && (
+                  <>
+                    <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[var(--app-bg,#f4f6f8)] to-transparent sm:hidden" />
+                    <p className="mt-1 text-center text-xs text-slate-400 sm:hidden">← Seitlich wischen für den ganzen Raum →</p>
+                  </>
+                )}
               </div>
               {layout.unplaced.length > 0 && (
                 <section>
@@ -428,7 +439,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
             </>
           )
         ) : (
-          <CriteriaGrid lesson={lesson} students={visible} focusComps={focusComps} obs={obs} onCell={(s) => setCapture(ctx([s.id]))} />
+          <CriteriaGrid lesson={lesson} students={visible} focusComps={focusComps} obs={obs} discreet={discreet} onCell={(s) => setCapture(ctx([s.id]))} />
         )}
       </div>
 
@@ -437,6 +448,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
         onClose={() => {
           setCapture(null)
           setSelected([])
+          setMulti(false)
         }}
       />
       <ReflectionSheet lesson={lesson} open={ending} onClose={() => setEnding(false)} students={students} observations={obs} />
@@ -454,7 +466,7 @@ const LEVEL_CHIP = [
 ]
 
 /** Systematische Beobachtung: Kind × Kriterium, ein Tipp = Stufe weiterschalten. */
-function CriteriaGrid({ lesson, students, focusComps, obs, onCell }: { lesson: Lesson; students: Student[]; focusComps: Competency[]; obs: Observation[]; onCell: (s: Student) => void }) {
+function CriteriaGrid({ lesson, students, focusComps, obs, discreet, onCell }: { lesson: Lesson; students: Student[]; focusComps: Competency[]; obs: Observation[]; discreet: boolean; onCell: (s: Student) => void }) {
   const latest = latestLevels(obs.filter((o) => o.lessonId === lesson.id))
   const before = latestLevels(obs.filter((o) => o.lessonId !== lesson.id))
   if (!focusComps.length)
@@ -470,16 +482,30 @@ function CriteriaGrid({ lesson, students, focusComps, obs, onCell }: { lesson: L
         </div>
       </Card>
     )
-  const set = async (s: Student, compId: string, current?: number) => {
-    const level = ((current ?? 0) % 4) + 1
+  /** Ein Eintrag je Kind × Kompetenz × Stunde: weiterschalten statt neu anlegen, nach „sicher“ leeren. */
+  const set = async (s: Student, compId: string) => {
     const c = focusComps.find((x) => x.id === compId)!
-    await quickSave({ classId: lesson.classId, studentIds: [s.id], lessonId: lesson.id, kind: 'lernstand', valence: level >= 3 ? 'pos' : level === 1 ? 'neg' : 'neu', subject: c.subject, competencyId: compId, level: level as 1 | 2 | 3 | 4, text: '' })
-    toast(`${s.firstName}: ${LEVEL_LABEL[level]}`)
+    const existing = obs.find((o) => o.lessonId === lesson.id && o.competencyId === compId && o.kind === 'lernstand' && o.studentIds.length === 1 && o.studentIds[0] === s.id && !o.text)
+    const cur = existing?.level ?? 0
+    try {
+      if (existing && cur >= 4) {
+        await remove(db.observations, existing.id)
+        toast(discreet ? 'Gespeichert' : `${s.firstName}: zurückgesetzt`)
+        return
+      }
+      const level = (cur + 1) as 1 | 2 | 3 | 4
+      const valence = level >= 3 ? 'pos' : level === 1 ? 'neg' : 'neu'
+      if (existing) await save(db.observations, { ...existing, level, valence })
+      else await quickSave({ classId: lesson.classId, studentIds: [s.id], lessonId: lesson.id, kind: 'lernstand', valence, subject: c.subject, competencyId: compId, level, text: '' })
+      toast(discreet ? 'Gespeichert' : `${s.firstName}: ${LEVEL_LABEL[level]}`)
+    } catch {
+      toast('Speichern fehlgeschlagen')
+    }
   }
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 px-1 text-xs text-slate-500">
-        <span className="mr-1">Antippen schaltet weiter:</span>
+      <div className={clsx('flex flex-wrap items-center gap-2 px-1 text-xs text-slate-500', discreet && 'invisible')}>
+        <span className="mr-1">Antippen schaltet weiter (nach „sicher“ wieder leer):</span>
         {[1, 2, 3, 4].map((l) => (
           <span key={l} className={clsx('rounded-md px-2 py-1 font-semibold ring-1', LEVEL_CHIP[l])}>
             {LEVEL_LABEL[l]}
@@ -514,11 +540,11 @@ function CriteriaGrid({ lesson, students, focusComps, obs, onCell }: { lesson: L
                     <td key={c.id} className="border-b border-slate-100 p-1.5">
                       <button
                         type="button"
-                        onClick={() => set(s, c.id, cur)}
-                        aria-label={`${s.firstName}, ${c.text}: ${cur ? LEVEL_LABEL[cur] : 'noch nicht eingeschätzt'}`}
-                        className={clsx('h-12 w-full rounded-xl text-xs font-semibold ring-1 transition active:scale-[0.97]', LEVEL_CHIP[cur ?? 0])}
+                        onClick={() => set(s, c.id)}
+                        aria-label={`${s.firstName}, ${c.text}: ${cur ? (discreet ? 'erfasst' : LEVEL_LABEL[cur]) : 'noch nicht eingeschätzt'}`}
+                        className={clsx('h-12 w-full rounded-xl text-xs font-semibold ring-1 transition active:scale-[0.97]', discreet ? (cur ? 'bg-slate-100 text-slate-500 ring-slate-200' : LEVEL_CHIP[0]) : LEVEL_CHIP[cur ?? 0])}
                       >
-                        {cur ? LEVEL_LABEL[cur] : prev ? <span className="font-normal text-slate-400">zuvor: {LEVEL_LABEL[prev]}</span> : '–'}
+                        {discreet ? (cur ? '●' : '–') : cur ? LEVEL_LABEL[cur] : prev ? <span className="font-normal text-slate-400">zuvor: {LEVEL_LABEL[prev]}</span> : '–'}
                       </button>
                     </td>
                   )
@@ -547,6 +573,9 @@ function LessonDetail({ lesson, students, obs, comps }: { lesson: Lesson; studen
   const minutes = end ? Math.max(0, differenceInMinutes(end, start)) : undefined
   const kids = new Set(inLesson.flatMap((o) => o.studentIds)).size
   const focusComps = comps.filter((c) => lesson.focusCompetencyIds.includes(c.id))
+  const focusKids = lesson.focusStudentIds.map((id) => byId.get(id)).filter((s): s is Student => !!s)
+  const hasFocusInfo = !!lesson.focus || focusComps.length > 0 || focusKids.length > 0
+  const hasNotes = !!(r?.whatWasDone || r?.note || r?.nextTime)
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 md:px-8 md:py-8">
@@ -568,18 +597,17 @@ function LessonDetail({ lesson, students, obs, comps }: { lesson: Lesson; studen
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryTile label="Verlauf">
-          {r?.rating ? (
-            <span className="inline-flex items-center gap-2">
-              <span className={clsx('size-3 rounded-full', RATING_DOT[r.rating])} />
-              {RATING_LABEL[r.rating]}
+        <SummaryTile label="Verlauf" className="col-span-2 sm:col-span-2">
+          {r?.rating || r?.goalReached ? (
+            <span className="inline-flex flex-wrap items-center gap-x-2">
+              {r?.rating && <span className={clsx('size-3 rounded-full', RATING_DOT[r.rating])} />}
+              {[r?.rating && RATING_LABEL[r.rating], r?.goalReached && `Ziel ${GOAL_LABEL[r.goalReached]}`].filter(Boolean).join(' · ')}
             </span>
           ) : (
-            <span className="text-slate-400">–</span>
+            <span className="font-normal text-slate-400">noch nicht bewertet</span>
           )}
         </SummaryTile>
-        <SummaryTile label="Ziel">{r?.goalReached ? GOAL_LABEL[r.goalReached] : <span className="text-slate-400">–</span>}</SummaryTile>
-        <SummaryTile label="Dauer">{minutes !== undefined ? <span className="tabular-nums">{minutes} min</span> : <span className="text-slate-400">–</span>}</SummaryTile>
+        <SummaryTile label="Dauer">{minutes !== undefined ? <span className="tabular-nums">{minutes} min</span> : <span className="font-normal text-slate-400">–</span>}</SummaryTile>
         <SummaryTile label="Einträge">
           <span className="tabular-nums">
             {inLesson.length}
@@ -588,52 +616,55 @@ function LessonDetail({ lesson, students, obs, comps }: { lesson: Lesson; studen
         </SummaryTile>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-5">
-        <Card title="Reflexion" icon={BookOpen} className="md:col-span-3">
-          <dl className="space-y-4 text-sm">
-            <DetailRow label="Was wurde gemacht?">{r?.whatWasDone}</DetailRow>
-            <DetailRow label="Was würde ich anders machen?">{r?.note}</DetailRow>
-            <DetailRow label="Für nächstes Mal">{r?.nextTime}</DetailRow>
-          </dl>
-          {!r && (
-            <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-              Noch kein Abschluss erfasst.{' '}
+      <div className={clsx('grid gap-5', hasFocusInfo && 'md:grid-cols-5')}>
+        <Card title="Reflexion" icon={BookOpen} className={hasFocusInfo ? 'md:col-span-3' : undefined}>
+          {hasNotes ? (
+            <dl className="space-y-4 text-sm">
+              <DetailRow label="Was wurde gemacht?">{r?.whatWasDone}</DetailRow>
+              <DetailRow label="Was würde ich anders machen?">{r?.note}</DetailRow>
+              <DetailRow label="Für nächstes Mal">{r?.nextTime}</DetailRow>
+            </dl>
+          ) : (
+            <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+              {r ? 'Keine Notizen zur Stunde.' : 'Noch kein Abschluss erfasst.'}{' '}
               <button type="button" className="font-semibold underline" onClick={() => setEditing(true)}>
-                Jetzt nachtragen
+                {r ? 'Ergänzen' : 'Jetzt nachtragen'}
               </button>
             </div>
           )}
         </Card>
-        <Card title="Schwerpunkt" icon={Target} className="md:col-span-2">
-          <div className="space-y-3 text-sm">
-            <p className={lesson.focus ? 'text-slate-700' : 'text-slate-400'}>{lesson.focus || 'Kein Beobachtungsschwerpunkt.'}</p>
-            {focusComps.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {focusComps.map((c) => (
-                  <Badge key={c.id} tone="brand" className="font-medium">
-                    {c.text}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            {lesson.focusStudentIds.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {lesson.focusStudentIds.map((id) => byId.get(id)).filter((s): s is Student => !!s).map((s) => (
-                  <span key={s.id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 py-0.5 pr-2.5 pl-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
-                    <Avatar student={s} size={20} /> {s.firstName}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </Card>
+        {hasFocusInfo && (
+          <Card title="Schwerpunkt" icon={Target} className="md:col-span-2">
+            <div className="space-y-3 text-sm">
+              {lesson.focus && <p className="text-slate-700">{lesson.focus}</p>}
+              {focusComps.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {focusComps.map((c) => (
+                    <Badge key={c.id} tone="brand" className="font-medium">
+                      {c.text}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {focusKids.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {focusKids.map((s) => (
+                    <span key={s.id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 py-0.5 pr-2.5 pl-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
+                      <Avatar student={s} size={20} /> {s.firstName}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
       </div>
 
       {!!lesson.attachments?.length && (
         <Card title="Tafelbild" icon={ImageIcon}>
           <div className="flex flex-wrap gap-3">
             {lesson.attachments.map((a) => (
-              <AttachmentView key={a.id} a={a} className="h-40 cursor-zoom-in rounded-xl object-cover ring-1 ring-slate-200" />
+              <AttachmentView key={a.id} a={a} owner={{ table: 'lessons', id: lesson.id }} className="h-40 cursor-zoom-in rounded-xl object-cover ring-1 ring-slate-200" />
             ))}
           </div>
         </Card>
@@ -673,9 +704,9 @@ function LessonDetail({ lesson, students, obs, comps }: { lesson: Lesson; studen
   )
 }
 
-function SummaryTile({ label, children }: { label: string; children: React.ReactNode }) {
+function SummaryTile({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-2xl bg-white px-4 py-3.5 shadow-[var(--shadow-card)] ring-1 ring-slate-200/80">
+    <div className={clsx('rounded-2xl bg-white px-4 py-3.5 shadow-[var(--shadow-card)] ring-1 ring-slate-200/80', className)}>
       <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">{label}</p>
       <p className="mt-1 text-[15px] font-semibold text-slate-900">{children}</p>
     </div>
@@ -683,10 +714,11 @@ function SummaryTile({ label, children }: { label: string; children: React.React
 }
 
 function DetailRow({ label, children }: { label: string; children?: React.ReactNode }) {
+  if (!children) return null
   return (
     <div>
       <dt className="mb-0.5 text-xs font-medium text-slate-500">{label}</dt>
-      <dd className={clsx('whitespace-pre-wrap', children ? 'text-slate-800' : 'text-slate-400')}>{children || '–'}</dd>
+      <dd className="whitespace-pre-wrap text-slate-800">{children}</dd>
     </div>
   )
 }

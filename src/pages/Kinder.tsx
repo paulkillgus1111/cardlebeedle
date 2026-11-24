@@ -280,7 +280,7 @@ const VALENCE: Record<Valence, { label: string; tone: 'green' | 'slate' | 'rose'
   neg: { label: 'kritisch', tone: 'rose' },
 }
 
-const selectCls = clsx(inputCls, 'w-auto py-2 pr-8 text-sm')
+const selectCls = clsx(inputCls, '!w-auto py-2 pr-8 text-sm')
 
 export function Timeline({ obs, comps, onEdit, onAdd }: { obs: Observation[]; comps: Competency[]; onEdit?: (o: Observation) => void; onAdd?: () => void }) {
   const [kind, setKind] = useState<'alle' | ObsKind>('alle')

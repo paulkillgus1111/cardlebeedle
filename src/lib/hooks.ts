@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useSyncExternalStore } from 'react'
 import { alive, db, type Competency, type Observation, type SchoolClass, type Student } from './db'
-import { bandFor } from './seed'
+import { bandFor, compareCompetencies } from './seed'
 
 const KEY = 'activeClassId'
 const listeners = new Set<() => void>()
@@ -71,7 +71,7 @@ export function useCompetencies(cls?: SchoolClass): Competency[] {
     useLiveQuery(async () => {
       if (!cls) return []
       const band = bandFor(cls.gradeLevel)
-      return alive(await db.competencies.where('band').equals(band).toArray())
+      return alive(await db.competencies.where('band').equals(band).toArray()).sort(compareCompetencies)
     }, [cls?.id, cls?.gradeLevel]) ?? []
   )
 }

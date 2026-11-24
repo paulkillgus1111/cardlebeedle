@@ -794,7 +794,7 @@ function Kompetenzen() {
               { value: '3/4', label: 'Jgst. 3/4' },
             ]}
           />
-          <select value={subject} onChange={(e) => setSubject(e.target.value)} className={clsx(inputCls, 'w-auto py-2 text-sm')}>
+          <select value={subject} onChange={(e) => setSubject(e.target.value)} className={clsx(inputCls, '!w-auto py-2 text-sm')}>
             {SUBJECTS_BY_GRADE[4].map((s) => (
               <option key={s}>{s}</option>
             ))}

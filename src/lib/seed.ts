@@ -214,3 +214,15 @@ export async function ensureSeed() {
     await db.meta.put({ key: 'seeded-v2', value: now() })
   })
 }
+
+/** Reihenfolge der Kompetenzen wie im Lehrplan (eigene Kompetenzen danach, alphabetisch). */
+const ORDER = new Map<string, number>()
+{
+  let i = 0
+  for (const [subject, band, area, items] of COMPETENCY_SEED) for (const text of items) ORDER.set(`${subject}|${band}|${area}|${text}`, i++)
+}
+export const compareCompetencies = (a: Competency, b: Competency) =>
+  (ORDER.get(`${a.subject}|${a.band}|${a.area}|${a.text}`) ?? 1e6) - (ORDER.get(`${b.subject}|${b.band}|${b.area}|${b.text}`) ?? 1e6) ||
+  a.subject.localeCompare(b.subject) ||
+  a.area.localeCompare(b.area) ||
+  a.text.localeCompare(b.text)

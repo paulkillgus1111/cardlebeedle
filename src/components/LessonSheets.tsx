@@ -318,7 +318,7 @@ function ReflectionForm({ lesson, onClose, students, observations }: { lesson: L
         <div className="flex flex-wrap items-center gap-3">
           {attachments.map((a) => (
             <div key={a.id} className="relative">
-              <AttachmentView a={a} className="size-20 rounded-xl object-cover ring-1 ring-slate-200" />
+              <AttachmentView a={a} owner={{ table: 'lessons', id: lesson.id }} className="size-20 rounded-xl object-cover ring-1 ring-slate-200" />
               <button
                 type="button"
                 onClick={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
