@@ -243,3 +243,44 @@ export async function getMeta<T>(key: string, fallback: T): Promise<T> {
 export async function setMeta(key: string, value: unknown) {
   await db.meta.put({ key, value })
 }
+
+/** Klasse inkl. aller abhängigen Daten weich löschen. */
+export async function removeClass(classId: ID) {
+  const t = now()
+  const tables = [db.students, db.observations, db.lessons, db.goals, db.conversations, db.seatingPlans] as Table<Base & { classId: ID }, ID>[]
+  await db.transaction('rw', [db.classes, ...tables], async () => {
+    for (const table of tables) {
+      const rows = await table.where('classId').equals(classId).toArray()
+      await table.bulkPut(rows.filter((r) => !r.deleted).map((r) => ({ ...r, deleted: 1 as const, dirty: 1 as const, updatedAt: t })))
+    }
+    const c = await db.classes.get(classId)
+    if (c) await db.classes.put({ ...c, deleted: 1, dirty: 1, updatedAt: t })
+  })
+}
+
+/** Kind inkl. seiner Ziele/Gespräche löschen; aus Beobachtungen mit mehreren Kindern nur austragen. */
+export async function removeStudent(studentId: ID) {
+  const t = now()
+  await db.transaction('rw', [db.students, db.observations, db.goals, db.conversations, db.seatingPlans], async () => {
+    for (const table of [db.goals, db.conversations] as Table<Base & { studentId: ID }, ID>[]) {
+      const rows = await table.where('studentId').equals(studentId).toArray()
+      await table.bulkPut(rows.filter((r) => !r.deleted).map((r) => ({ ...r, deleted: 1 as const, dirty: 1 as const, updatedAt: t })))
+    }
+    const obs = await db.observations.where('studentIds').equals(studentId).toArray()
+    await db.observations.bulkPut(
+      obs
+        .filter((o) => !o.deleted)
+        .map((o) => {
+          const rest = o.studentIds.filter((x) => x !== studentId)
+          return rest.length ? { ...o, studentIds: rest, dirty: 1 as const, updatedAt: t } : { ...o, deleted: 1 as const, dirty: 1 as const, updatedAt: t }
+        }),
+    )
+    const plans = await db.seatingPlans.toArray()
+    for (const p of plans) if (p.seats.some((s) => s.studentId === studentId)) await db.seatingPlans.put({ ...p, seats: p.seats.filter((s) => s.studentId !== studentId), dirty: 1, updatedAt: t })
+    const s = await db.students.get(studentId)
+    if (s) await db.students.put({ ...s, deleted: 1, dirty: 1, updatedAt: t })
+  })
+}
+
+/** Datensatz nur liefern, wenn nicht gelöscht. */
+export const aliveOne = <T extends Base>(row: T | undefined) => (row && !row.deleted ? row : undefined)

@@ -1,4 +1,4 @@
-import { db, now, uid, type Competency, type GradeLevel, type QuickTemplate, type ObsKind } from './db'
+import { db, now, type Competency, type GradeLevel, type QuickTemplate, type ObsKind } from './db'
 
 /** Fächer der bayerischen Grundschule je Jahrgangsstufe (LehrplanPLUS). */
 export const SUBJECTS_BY_GRADE: Record<GradeLevel, string[]> = {
@@ -169,22 +169,48 @@ export const LEG_SECTIONS: { id: string; title: string; hint: string }[] = [
   { id: 'unterstuetzung', title: 'So unterstützen wir', hint: 'Was tun Kind, Eltern, Lehrkraft?' },
 ]
 
+/** Deterministische UUID aus einem Text – jedes Gerät erzeugt dieselben IDs für die Grunddaten. */
+async function stableId(text: string) {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(`lehrer-cockpit:${text}`))).slice(0, 16)
+  h[6] = (h[6] & 0x0f) | 0x50
+  h[8] = (h[8] & 0x3f) | 0x80
+  const x = [...h].map((b) => b.toString(16).padStart(2, '0')).join('')
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`
+}
+
+/** Grunddaten gelten als „alt“, damit jede Änderung von einem anderen Gerät gewinnt. */
+const SEED_TIME = '2026-01-01T00:00:00.000Z'
+
 export async function ensureSeed() {
-  const seeded = await db.meta.get('seeded-v1')
-  if (seeded) return
-  const t = now()
+  if (await db.meta.get('seeded-v2')) return
   const comps: Competency[] = []
   for (const [subject, band, area, items] of COMPETENCY_SEED) {
-    for (const text of items) {
-      comps.push({ id: uid(), subject, band, area, text, builtin: true, updatedAt: t, dirty: 1 })
-    }
+    for (const text of items) comps.push({ id: await stableId(`comp|${subject}|${band}|${area}|${text}`), subject, band, area, text, builtin: true, updatedAt: SEED_TIME, dirty: 0 })
   }
-  const quick: QuickTemplate[] = QUICK_SEED.map(([label, kind, valence], i) => ({
-    id: uid(), label, kind, valence, order: i, updatedAt: t, dirty: 1,
-  }))
-  await db.transaction('rw', db.competencies, db.quickTemplates, db.meta, async () => {
-    await db.competencies.bulkPut(comps)
-    await db.quickTemplates.bulkPut(quick)
-    await db.meta.put({ key: 'seeded-v1', value: t })
+  const quick: QuickTemplate[] = []
+  for (const [i, [label, kind, valence]] of QUICK_SEED.entries()) quick.push({ id: await stableId(`quick|${label}`), label, kind, valence, order: i, updatedAt: SEED_TIME, dirty: 0 })
+
+  await db.transaction('rw', [db.competencies, db.quickTemplates, db.observations, db.lessons, db.goals, db.meta], async () => {
+    // Migration v1 → v2: zufällige IDs der alten Grunddaten auf stabile IDs umschreiben
+    const oldComps = (await db.competencies.toArray()).filter((c) => c.builtin && !comps.some((n) => n.id === c.id))
+    const map = new Map<string, string>()
+    for (const o of oldComps) {
+      const n = comps.find((c) => c.subject === o.subject && c.band === o.band && c.text === o.text)
+      if (n) map.set(o.id, n.id)
+    }
+    if (map.size) {
+      for (const o of await db.observations.toArray()) if (o.competencyId && map.has(o.competencyId)) await db.observations.put({ ...o, competencyId: map.get(o.competencyId), dirty: 1, updatedAt: now() })
+      for (const l of await db.lessons.toArray()) if (l.focusCompetencyIds.some((id) => map.has(id))) await db.lessons.put({ ...l, focusCompetencyIds: l.focusCompetencyIds.map((id) => map.get(id) ?? id), dirty: 1, updatedAt: now() })
+      for (const g of await db.goals.toArray()) if (g.competencyId && map.has(g.competencyId)) await db.goals.put({ ...g, competencyId: map.get(g.competencyId), dirty: 1, updatedAt: now() })
+      await db.competencies.bulkDelete([...map.keys()])
+    }
+    const oldQuick = (await db.quickTemplates.toArray()).filter((q) => !quick.some((n) => n.id === q.id) && QUICK_SEED.some(([l]) => l === q.label))
+    await db.quickTemplates.bulkDelete(oldQuick.map((q) => q.id))
+    // Nur anlegen, was es noch nicht gibt (nichts überschreiben, was der Nutzer geändert/gelöscht hat)
+    const existing = new Set((await db.competencies.bulkGet(comps.map((c) => c.id))).filter(Boolean).map((c) => c!.id))
+    await db.competencies.bulkPut(comps.filter((c) => !existing.has(c.id)))
+    const existingQ = new Set((await db.quickTemplates.bulkGet(quick.map((q) => q.id))).filter(Boolean).map((q) => q!.id))
+    await db.quickTemplates.bulkPut(quick.filter((q) => !existingQ.has(q.id)))
+    await db.meta.put({ key: 'seeded-v2', value: now() })
   })
 }

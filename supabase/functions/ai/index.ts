@@ -1,6 +1,7 @@
 // KI-Assistent des Lehrer-Cockpits (Supabase Edge Function, Deno).
 // Der API-Key liegt ausschließlich als Secret ANTHROPIC_API_KEY auf dem Server.
 import Anthropic from 'npm:@anthropic-ai/sdk'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const client = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') })
 const MODEL = 'claude-opus-5-5'
@@ -88,8 +89,15 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
   try {
+    // Nur angemeldete Nutzer (nicht nur der öffentliche Schlüssel)
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } })
+    const { data: who } = await sb.auth.getUser()
+    if (!who.user) return json({ error: 'Bitte in der App anmelden.' }, 401)
     if (!Deno.env.get('ANTHROPIC_API_KEY')) return json({ error: 'ANTHROPIC_API_KEY fehlt in den Supabase-Secrets.' }, 500)
-    const { task, data } = (await req.json()) as { task: Task; data: unknown }
+    const raw = await req.text()
+    if (raw.length > 600_000) return json({ error: 'Zu viele Daten für eine Anfrage – Zeitraum verkleinern.' }, 413)
+    const { task, data } = JSON.parse(raw) as { task: Task; data: unknown }
     if (!PROMPTS[task]) return json({ error: `Unbekannte Aufgabe: ${task}` }, 400)
     const schema = SCHEMAS[task]
 
@@ -104,6 +112,7 @@ Deno.serve(async (req) => {
     } as Anthropic.Beta.MessageCreateParamsNonStreaming)
 
     if (response.stop_reason === 'refusal') return json({ error: 'Die Anfrage wurde abgelehnt.' }, 422)
+    if (response.stop_reason === 'max_tokens') return json({ error: 'Die Antwort wurde zu lang – bitte kürzeren Text/Zeitraum wählen.' }, 422)
     const text = response.content
       .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
       .map((b) => b.text)
