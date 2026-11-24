@@ -431,7 +431,7 @@ function Editor({ id }: { id: string }) {
     (g) => g.conversationId !== draft.id && g.status !== 'verworfen' && (g.status === 'offen' || g.status === 'teilweise' || touched.has(g.id) || (!!prevConv && g.conversationId === prevConv.id)),
   )
   const convGoals = goals.filter((g) => g.conversationId === draft.id)
-  const photos = obs.filter((o) => o.shareable).flatMap((o) => o.attachments.filter((a) => a.type !== 'audio'))
+  const photos = obs.filter((o) => o.shareable).flatMap((o) => o.attachments.filter((a) => a.type !== 'audio').map((a) => ({ ...a, obsId: o.id })))
 
   const saveNow = async () => {
     dirtyRef.current = true
@@ -673,7 +673,7 @@ function Editor({ id }: { id: string }) {
           <li key={i} className="flex flex-col gap-2 rounded-xl bg-slate-50 p-2 pl-3 sm:flex-row sm:items-center sm:gap-3 print:flex-row print:items-center print:bg-transparent print:p-0">
             <textarea
               value={item.text}
-              rows={1}
+              rows={Math.max(1, Math.ceil(item.text.length / 34))}
               onChange={(e) => set({ selfAssessment: draft.selfAssessment.map((x, j) => (j === i ? { ...x, text: e.target.value.replace(/\n/g, ' ') } : x)) })}
               onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
               className={clsx(
@@ -807,7 +807,7 @@ function Editor({ id }: { id: string }) {
             <Card title="Arbeitsproben" icon={ImageIcon} className="print:hidden">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {photos.map((a) => (
-                  <AttachmentView key={a.id} a={a} className="aspect-[4/3] w-full rounded-2xl object-cover ring-1 ring-slate-200" />
+                  <AttachmentView key={a.id} a={a} owner={{ table: 'observations', id: a.obsId }} className="aspect-[4/3] w-full rounded-2xl object-cover ring-1 ring-slate-200" />
                 ))}
               </div>
             </Card>

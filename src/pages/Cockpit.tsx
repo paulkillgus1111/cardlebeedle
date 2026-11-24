@@ -122,7 +122,7 @@ export default function Cockpit() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
         {/* JETZT */}
         <section className="relative min-w-0 overflow-hidden rounded-2xl bg-white p-5 shadow-[var(--shadow-card)] ring-1 ring-slate-200/80 md:p-6 lg:col-span-2">
           <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-brand-100/60 blur-3xl" />

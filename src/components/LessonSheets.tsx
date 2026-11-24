@@ -28,7 +28,7 @@ export function subjectDot(subject: string) {
 }
 
 export const RATING_DOT = { gruen: 'bg-emerald-500', gelb: 'bg-amber-400', rot: 'bg-rose-500' } as const
-export const RATING_LABEL = { gruen: 'lief gut', gelb: 'gemischt', rot: 'schwierig' } as const
+export const RATING_LABEL = { gruen: 'gut', gelb: 'gemischt', rot: 'schwierig' } as const
 
 /** Neueste laufende Stunde einer Klasse. */
 export function latestRunning(lessons: Lesson[]) {
