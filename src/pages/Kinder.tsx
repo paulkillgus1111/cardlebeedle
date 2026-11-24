@@ -462,7 +462,7 @@ function CompetencyProfile({ obs, comps }: { obs: Observation[]; comps: Competen
             c,
             pts: rated
               .filter((o) => o.competencyId === c.id)
-              .sort((a, b) => a.date.localeCompare(b.date))
+              .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
               .map((o) => ({ date: o.date, level: o.level! })),
           }))
           .filter((r) => mode === 'all' || r.pts.length)

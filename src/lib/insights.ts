@@ -75,11 +75,15 @@ export function signals(students: Student[], obs: Observation[], comps: Competen
     if (neg14 >= 3) out.push({ id: `neg-${s.id}`, tone: 'warn', studentId: s.id, text: `${s.firstName}: ${neg14} kritische Einträge in 14 Tagen` })
     const last = mine.reduce<string | undefined>((m, o) => (!m || o.date > m ? o.date : m), undefined)
     const d = daysSince(last)
-    if (d >= 14) out.push({ id: `gap-${s.id}`, tone: 'info', studentId: s.id, text: d === Infinity ? `${s.firstName}: noch keine Beobachtung` : `${s.firstName}: seit ${d} Tagen nicht beobachtet` })
+    if (d >= 14 && d !== Infinity) out.push({ id: `gap-${s.id}`, tone: 'info', studentId: s.id, text: `${s.firstName}: seit ${d} Tagen nicht beobachtet` })
     const behaviour = mine.filter((o) => o.date >= d30 && (o.kind === 'sozialverhalten' || o.kind === 'arbeitsverhalten'))
     if (behaviour.length >= 4 && behaviour.every((o) => o.valence === 'pos'))
       out.push({ id: `pos-${s.id}`, tone: 'good', studentId: s.id, text: `${s.firstName}: im Verhalten seit 30 Tagen nur positiv – Ziel erreicht?` })
   }
+
+  const never = students.filter((s) => !obs.some((o) => o.studentIds.includes(s.id)))
+  if (never.length)
+    out.push({ id: 'never', tone: 'info', text: never.length === students.length ? 'Noch keine Beobachtungen – starte eine Stunde oder tippe auf „Beobachtung“.' : `Noch nie beobachtet: ${never.map((s) => s.firstName).join(', ')}` })
 
   // Kompetenzen, bei denen viele Kinder (noch) unsicher sind – jeweils letzter Stand je Kind
   const latest = latestLevels(obs.filter((o) => o.date >= d30))

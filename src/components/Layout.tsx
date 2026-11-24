@@ -8,13 +8,13 @@ import { setActiveClassId, useActiveClass, useClasses } from '../lib/hooks'
 import { supabase, sync } from '../lib/sync'
 import { setTheme, useTheme } from '../lib/theme'
 
-const NAV = [
+const NAV: { to: string; label: string; short?: string; icon: typeof Gauge; end?: boolean }[] = [
   { to: '/', label: 'Cockpit', icon: Gauge, end: true },
   { to: '/unterricht', label: 'Unterricht', icon: Presentation },
   { to: '/kinder', label: 'Kinder', icon: Users },
-  { to: '/klasse', label: 'Klassenblick', icon: Grid3x3 },
+  { to: '/klasse', label: 'Klassenblick', short: 'Klasse', icon: Grid3x3 },
   { to: '/gespraeche', label: 'Gespräche', icon: MessagesSquare },
-  { to: '/einstellungen', label: 'Einstellungen', icon: Settings },
+  { to: '/einstellungen', label: 'Einstellungen', short: 'Mehr', icon: Settings },
 ]
 
 function useAutoSync() {
@@ -87,8 +87,8 @@ export function Layout() {
   )
 
   return (
-    <div className="flex h-full flex-col md:flex-row">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200/70 bg-white/70 px-3 py-4 backdrop-blur-xl md:flex print:hidden">
+    <div className="flex h-full flex-col lg:flex-row">
+      <aside className="hidden w-64 shrink-0 flex-col lg:flex border-r border-slate-200/70 bg-white/70 px-3 py-4 backdrop-blur-xl print:hidden">
         <div className="mb-5 flex items-center gap-2.5 px-2">
           <img src="/favicon.svg" alt="" className="size-8 rounded-[10px] shadow-[var(--shadow-glow)]" />
           <div className="leading-tight">
@@ -135,17 +135,17 @@ export function Layout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {!live && (
-          <header className="flex items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 py-2.5 backdrop-blur-xl md:hidden print:hidden">
+          <header className="flex items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 py-2.5 backdrop-blur-xl lg:hidden print:hidden">
             <img src="/favicon.svg" alt="" className="size-7 rounded-lg" />
             <div className="min-w-0 flex-1">{classSelect || <span className="text-sm text-slate-500">Noch keine Klasse</span>}</div>
             <SyncBadge state={state} dirty={dirty} compact />
           </header>
         )}
-        <main className="min-h-0 flex-1 overflow-y-auto pb-24 md:pb-0 print:overflow-visible print:pb-0">
+        <main className="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-0 print:overflow-visible print:pb-0">
           <Outlet />
         </main>
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-slate-200/70 bg-white/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden print:hidden">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-slate-200/70 bg-white/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden print:hidden">
+          {NAV.map(({ to, label, short, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -153,7 +153,7 @@ export function Layout() {
               className={({ isActive }) => clsx('flex flex-col items-center gap-1 pt-2 pb-1.5 text-[10px] font-medium', isActive ? 'text-brand-600' : 'text-slate-400')}
             >
               <Icon size={21} />
-              <span className="max-w-full truncate px-0.5">{label}</span>
+              <span className="max-w-full truncate px-0.5">{short ?? label}</span>
             </NavLink>
           ))}
         </nav>
