@@ -1,329 +1,174 @@
-# Lehrer-App: Plan v2 (Grundschule Bayern, Klassenlehrkraft)
+# Persönliches Lehrer-Cockpit: Plan v3
 
-Stand: 24.11.2026.
-- **v1:** 8 Recherchen zu den beliebtesten Lehrer-Tools.
-- **v2:** dazu 3 Recherchen zu Schulmanager Online, den bayerischen Grundschul-Regeln (GrSO, LEG, Übertritt, LehrplanPLUS) und typischen Grundschul-Werkzeugen.
+Stand: 24.11.2026. Klassenlehrkraft an einer Grundschule in Bayern, alle Fächer, Schwerpunkt Mathe. Ich arbeite mit iPad (im Unterricht) und Laptop. Schulmanager Online deckt alles Offizielle ab.
 
-**Rahmen:**
-- Klassenlehrkraft an einer Grundschule in Bayern. Alle Fächer, Schwerpunkt Mathe.
-- Geräte: iPad (mit Pencil) im Unterricht, Laptop am Schreibtisch.
-- Die Schule nutzt **Schulmanager Online**. Was der kann, bauen wir nicht nach.
-- Nur für den persönlichen Gebrauch.
+## Leitidee
+
+**Ein Cockpit für Unterrichtsbeobachtung und -dokumentation.**
+Im Unterricht beobachte ich schnell und gezielt. Nach der Stunde halte ich in zwei Minuten fest, wie es lief. Das Cockpit verdichtet das zu einem Bild: wie es jedem Kind und der Klasse geht und wie sich beides entwickelt. Gespräche, Lernentwicklungsgespräche (LEG) und Zeugnistexte fallen als Nebenprodukt ab.
+
+```
+   BEOBACHTEN  ──►  DOKUMENTIEREN  ──►  VERSTEHEN  ──►  NUTZEN
+   (in der Stunde)   (nach der Stunde)    (Cockpit)      (Gespräch, LEG, Zeugnis)
+```
+
+Alles andere aus v2 bleibt draußen oder kommt später (siehe Abschnitt 7). Dazu gehören Klassenkasse, Ausflüge, Ämterplan, Widgets, große Unterrichtsplanung und das komplette Notenbuch.
 
 ---
 
-## 0. Was sich gegenüber v1 ändert
+## 1. Das Cockpit (Startseite)
 
-v1 war zu allgemein und teils auf die weiterführende Schule zugeschnitten. In v2 ist es so:
+Ein Bildschirm, im Querformat auf dem iPad und breit auf dem Laptop.
 
-**Raus**, weil Schulmanager es abdeckt oder es in der Grundschule nicht vorkommt:
-- Elternnachrichten, Elternbriefe mit Lesebestätigung, Krankmeldungen, Sprechtag-Buchung, Messenger, Umfragen
-- offizielles Klassenbuch und Fehlzeiten, Stunden- und Vertretungsplan, Termine für Leistungsnachweise
-- 0–15 Punkte, Abitur-Notenschlüssel, Anforderungsbereiche (AFB), Exit-Tickets per QR an Schülerhandys
-
-**Neu**, das Grundschul-Spezifische:
-- **Lernentwicklungsgespräch (LEG)** nach bayerischem Muster: Es ersetzt in Jgst. 1–3 das Zwischenzeugnis. Das Kind nimmt teil, am Ende stehen Ziele.
-- **Mathe-Diagnose mit Fehleranalyse:** dein Hauptfach und das größte Alleinstellungsmerkmal
-- **Lese- und Rechtschreibentwicklung:** Lesepass, Lesegeschwindigkeit, Grundwortschatz Bayern, Fehlerarten
-- **Wortgutachten und Zeugnisbemerkungen**, der **Übertritt in Jgst. 4** (Schnitt aus D/M/HSU), Notenschutz und Nachteilsausgleich
-- **Wochenplan und Stationenlernen**, Ich-kann-Listen, Portfolio
-- **Klassenleben:** Ämterplan, Belohnungssystem, Morgenkreis, Klassenrat
-- **Organisation:** Klassenkasse, Ausflüge, Elternabend, Vertretungsmappe
-- **Apple Pencil** und **sauberer Druck**, denn Grundschulkinder arbeiten auf Papier
-
-**Grenze zu Schulmanager:**
-
-| Schulmanager (bleibt dort) | Unsere App (alles drumherum) |
+| Bereich | Inhalt |
 |---|---|
-| Nachrichten und Briefe an Eltern, Rückmeldungen | **Kontaktlog** pro Kind: *was* wurde *wann* besprochen. Briefe entwerfen, dann in Schulmanager einfügen |
-| Krankmeldungen, offizielle Fehlzeiten | höchstens eine Notiz in der Akte, wenn auffällig |
-| Sprechtag-Buchung | **Vorbereitung und Protokoll** der Gespräche |
-| Klassenbuch, Stundenplan | Import des **Kalenders per iCal-Abo**. Eigene Unterrichtsplanung |
-| Notenmodul (falls gebucht): Endnoten | **Arbeits-Notenbuch** mit Proben pro Aufgabe, Fehleranalyse, Rechenweg. Die Endnote überträgst du von Hand |
-| Elternbriefe mit Rückmeldung | **Papier-Rücklauf** (Kakaogeld, Zettel, Bücherei) nur da, wo Schulmanager nicht passt |
+| **Jetzt** | Die aktuelle bzw. nächste Stunde (aus dem Schulmanager-Kalender bzw. dem eigenen Stundenraster). Darin der **Beobachtungsschwerpunkt** der Stunde und der Button **„Stunde starten“**, der in den Unterrichtsmodus führt |
+| **Heute** | Die Stunden des Tages, jeweils mit Status: Doku offen / erledigt |
+| **Fokus-Kinder** | 3–4 Kinder, die heute dran sind (lange nicht beobachtet, offene Ziele, neue Sorge) |
+| **Abdeckung** | Ein Ring pro Kind: Wie aktuell und wie vollständig ist die Dokumentation (über alle Fächer und über Sozial- sowie Arbeitsverhalten)? Lücken fallen sofort auf |
+| **Signale** | Automatische Hinweise, z. B. „Lena: 3 Sorgen-Einträge in 10 Tagen“, „7 Kinder unsicher beim Zehnerübergang“, „Tim: seit 3 Wochen nur positive Einträge zum Sozialverhalten → Ziel erreicht?“ |
+| **Wiedervorlagen** | Fällige Ziele, Vereinbarungen und „nochmal anschauen“ |
+| **Zuletzt** | Die letzten Einträge mit Wischgeste zum Nachbearbeiten (Kompetenz zuordnen, Text ergänzen) |
+| **Schnellerfassung** | Ein Button, der überall sichtbar ist: Sprechen, Tippen, Foto oder Pencil |
+
+Unten gibt es den **Wochenrückblick**, gedacht für Freitag: Was ist diese Woche aufgefallen, wen habe ich kaum gesehen, welche Muster zeigen sich?
 
 ---
 
-## 1. Module
+## 2. Beobachten: der Unterrichtsmodus (iPad)
 
-### M1: Klasse und Kinder (Fundament)
-- Schuljahr, Halbjahre, Klasse mit Jahrgangsstufe. Die Jahrgangsstufe steuert, welche Funktionen aktiv sind: Jgst. 1/2 verbal, Jgst. 2 ab dem 2. Halbjahr mit Noten, Jgst. 4 mit Übertritt.
-- **Fächer der Jahrgangsstufe** sind vorkonfiguriert: D, M, HSU, Englisch (3/4), Kunst, Musik, Sport, Werken und Gestalten, Religion/Ethik. DaZ optional.
-- **Kinderprofil:**
-  - Foto, Geburtstag, Eltern und Kontakte
-  - Abholregelung, Allergien und Medikamente
-  - Förderstatus: LRS, Notenschutz/Nachteilsausgleich laut Bescheid, sonderpädagogischer Förderbedarf (MSD), DaZ/Vorkurs
-- Klassenliste per CSV importieren oder abtippen. Klasse mitnehmen ins nächste Schuljahr.
-- **Sitzplan** als Startbildschirm im Unterricht: Raum-Editor, Gruppentische, Drag & Drop. Ein Tipp auf ein Kind öffnet das Schnellmenü (M2).
+Startet über „Stunde starten“ oder mit einem Tipp aus dem Cockpit.
 
-### M2: Schülerakte und Entwicklungsverlauf (Pflichtmodul, Kernstück)
-**Schnellerfassung** in maximal 2 Taps (Sitzplan → Kind → Vorlage):
-- Mehrere Kinder auf einmal möglich
-- ✓ / ~ / ✗ oder 👍/👎, kurzer Text
-- **Pencil-Notiz bzw. Skizze**
-- **Foto einer Schülerarbeit**, Sprachmemo mit Transkription
-- Textbausteine für Beobachtungen, die immer wieder vorkommen
+- **Sitzplan als Oberfläche:** Ein Tipp auf ein Kind öffnet ein Schnellmenü mit den Beobachtungsvorlagen **dieser Stunde**. Für mehrere Kinder auf einmal tippt man lange und wählt dann aus.
+- **Beobachtungsschwerpunkt:** Vor der Stunde legst du fest, was du heute beobachten willst, z. B. „Rechenstrategie Zehnerübergang, Gruppe Blau“. Das Schnellmenü zeigt dann genau diese Kriterien.
 
-**Eintragstypen:**
-- Beobachtung
-- Lernfortschritt (mit Kompetenz)
-- Arbeitsverhalten, Sozialverhalten
-- Vorfall (was, wo, wer, Maßnahme, Eltern informiert?)
-- Stärke
-- Förderbedarf
-- Elternkontakt
-- Arbeitsprobe
+**Beobachtungsarten:**
+1. **Frei (anekdotisch):** Text, Pencil, Sprachmemo oder Foto. Die Wertung lautet positiv, neutral oder Sorge.
+2. **Gezielt mit Kriterien:** ein Raster Kind × Kriterium mit den Stufen ✓ / ~ / ✗ bzw. nicht / teilweise / überwiegend / sicher. Damit lässt sich z. B. „Wer kann Zahlen bis 100 zerlegen?“ in einer Stunde für die ganze Klasse abhaken.
+3. **Verhalten:** Kurz-Taps für Arbeitsverhalten und Sozialverhalten (+/−), jeweils mit optionaler Notiz.
+4. **Arbeitsprobe:** Foto vom Heft oder Arbeitsblatt. Direkt darauf mit dem Pencil markieren, z. B. einen Fehler einkreisen.
+5. **Lerngespräch mit dem Kind:** Nachgefragt, wie es rechnet („Erklär mir, wie du das gemacht hast“). Die Aussage wird wörtlich als Zitat festgehalten.
+6. **Mathe-Diagnose:** ein Diagnose-Bogen (z. B. ZR 20, Einmaleins). Pro Aufgabe gibt es Fehlerkategorien wie Zählfehler ±1, Stellenwert oder Übertrag. *Das ist ein spezieller Fall von 2.*
 
-**Zuordnung:**
-- Jeder Eintrag hat Fach, Kompetenz aus dem Raster, Wertung (positiv / neutral / Sorge) und Tags.
-- Die Kategorien **Sozialverhalten** und **Lern- und Arbeitsverhalten** sind fest angelegt, weil sie wörtlich auf Zeugnis und LEG-Bogen stehen.
-
-**Kompetenzraster nach LehrplanPLUS:**
-- Fach → Lernbereich → Kompetenzerwartung, in Doppeljahrgangsstufen (1/2, 3/4).
-- Mathe und Deutsch werden mit den vier Lernbereichen vorbefüllt. Den Rest pflegst du selbst; eine Download-Datei des Lehrplans gibt es nicht.
-- Stufen: nicht / teilweise / überwiegend / sicher.
-
-**Ansichten:**
-1. Timeline pro Kind mit Filtern und Halbjahrs-Trennern
-2. Kompetenz-Heatmap: Kind × Kompetenz bzw. Kompetenz × Zeit
-3. Trendlinien pro Kompetenz. Die Belege erscheinen als Punkte und lassen sich öffnen
-4. Verhaltenstrend pro Woche
-5. Vergleich zweier Zeiträume (vorheriges LEG gegen heute)
-6. **Abdeckung:** „Wen habe ich seit X Tagen nicht beobachtet?“ Die App schlägt täglich 3–4 Fokus-Kinder vor
-7. Förderziele und Vereinbarungen als Board
-
-### M3: Gespräche (LEG, Elterngespräch, Übertritts-Beratung)
-**Lernentwicklungsgespräch** nach § 15 Abs. 7 GrSO, Jgst. 1–3:
-- Ein **Bogen nach ISB-Muster** mit den Abschnitten Sozialverhalten, Lern- und Arbeitsverhalten, Leistungsstand pro Fach und 1–3 vereinbarten Lernzielen. Die Vorlage ist anpassbar, falls deine Schule einen eigenen Bogen hat.
-- **Vorbereitung:**
-  - Aus der Akte wird automatisch ein Entwurf pro Abschnitt erzeugt. Dazu Belege (Fotos von Arbeiten), Trend-Minicharts und die Ziele vom letzten Mal mit Status.
-  - Dazu eine **Selbsteinschätzung des Kindes:** eine Ich-kann-Liste mit Smileys, auf dem iPad mit dem Kind ausgefüllt oder ausgedruckt.
-- **Gesprächsansicht** am iPad: kindgerecht, zeigt nur Freigegebenes. Live-Notizen, Sicht der Eltern, Sicht des Kindes.
-- **Danach:**
-  - Dokumentationsbogen als PDF zum Unterschreiben
-  - Die Ziele landen im Board und erscheinen beim nächsten LEG mit „erreicht?“
-- **Saisonplaner:** Liste aller Kinder mit Termin, Status (vorbereitet / geführt / unterschrieben) und Fortschritt. Die LEG-Zeit liegt vor dem Zwischenzeugnis Mitte Februar.
-
-**Elterngespräch** außerhalb des LEG (Anlass, Konflikt, Förderung):
-- Briefing, Gesprächspunkte (beginnen mit einer Stärke, Punkte lassen sich als „nicht ansprechen“ markieren)
-- Protokoll, Vereinbarungen mit Wiedervorlage, PDF
-
-**Übertritts-Beratung Jgst. 4:** Siehe M4. Ein eigener Gesprächstyp mit Notenstand, Prognose und Protokoll.
-
-**Kontaktlog:** Jeder Kontakt mit Datum, Kanal (Schulmanager, Telefon, Tür-und-Angel, Gespräch), Thema und Wertung. Filter wie „seit X Wochen kein Kontakt“ oder „bisher nur negative Kontakte“.
-
-### M4: Leistung, Proben, Zeugnis, Übertritt
-**Arbeits-Notenbuch:**
-- Die Regeln sind konfigurierbar, denn die GrSO legt kein festes Verhältnis zwischen schriftlich und mündlich fest.
-- Noten 1–6 mit +/− auf Proben (wird nicht aufs Zeugnis übernommen)
-- In Jgst. 1 und Jgst. 2 im 1. Halbjahr **nur verbale Rückmeldung** statt Note. Die App blendet Noten dann aus.
-- Kategorien pro Fach: Proben, mündlich, praktisch. Gewichtung und Rundungsregel stellst du ein.
-
-**Probe pro Aufgabe:**
-- Aufgaben und Teilaufgaben mit Punkten und Kompetenz, Tastatur-Raster Kind × Aufgabe, halbe Punkte
-- **Eigener Notenschlüssel** in Prozent (keine amtliche Vorgabe), als Vorlage speicherbar
-- Notenspiegel und Schnitt
-- **Fehleranalyse pro Aufgabe bzw. Kompetenz.** Schwache Aufgaben fließen automatisch in die Mathe-Diagnose (M5).
-- Rückmeldebogen pro Kind: kindgerecht, mit Smiley, Lob und Tipp. Dient zur Unterschrift der Eltern.
-- Nachschreiber, Notenschutz-Vermerk (z. B. Rechtschreibung nicht bewertet)
-
-**Probenzähler:**
-- In Jgst. 4 sind es 18 Proben in D/M/HSU bis zum Übertrittszeugnis. Die Verteilung legt die Schule fest.
-- Die App zeigt den Stand und die Wochenbelastung.
-
-**Zeugnis:**
-- **Jgst. 1 und 2 (verbal):** ein **Wortgutachten-Editor**, gegliedert in Sozialverhalten, Lern- und Arbeitsverhalten und Leistungsstand. Dazu eine Bausteinbank und ein KI-Entwurf aus der Akte (M9).
-- **Jgst. 2–4:**
-  - Notenvorschlag pro Fach mit sichtbarem Rechenweg. Du kannst die Note überschreiben (pädagogische Gesamtwürdigung).
-  - Bemerkungen zum Verhalten
-- Notenschutz-Vermerke als Hinweis
-- Für alle Klassen eine Übersicht „Zeugnisstatus“: Was ist für welches Kind schon fertig?
-
-**Übertritt Jgst. 4:**
-- **Übertritts-Cockpit:** aktuelle Note in D/M/HSU, Gesamtschnitt (ungerundet), Ampel gegen die Grenzen Gymnasium ≤ 2,33 und Realschule ≤ 2,66
-- „Was-wäre-wenn“ für die nächsten Proben
-- Countdown bis zum Übertrittszeugnis Anfang Mai
-- Protokolle der Beratungsgespräche, Hinweis auf den Probeunterricht
-
-### M5: Mathe-Diagnose (Hauptfach, Alleinstellungsmerkmal)
-**Diagnose-Checks** nach Zahlenraum (ZR 10 / 20 / 100 / 1000 / Million):
-- Zählen, Zahlzerlegung, Zehnerübergang, Stellenwert
-- Verdoppeln und Halbieren, Kernaufgaben des Einmaleins
-- halbschriftliche und schriftliche Verfahren, Sachaufgaben, Größen, Geometrie
-- Die Vorlagen orientieren sich an Kinder-Mathe-Diagnose und PIKAS / Mathe sicher können. Eigene Checks kannst du anlegen.
-
-**Fehlerkategorien pro Aufgabe:**
-- Zählfehler ±1, Stellenwertfehler, Zahlendreher, Operationswechsel, Übertrag vergessen
-- „zählendes Rechnen beobachtet“, Strategie (Notiz)
-- Daraus werden **Fehlermuster pro Kind und für die Klasse**. Beispiel: „6 Kinder: Übertrag bei der schriftlichen Subtraktion“
-
-**Blitzrechnen / Einmaleins-Führerschein:**
-- Raster Kind × Reihe (bzw. Übung) mit Datum, Zeit und Ergebnis
-- Klassen-Heatmap, Führerschein-Urkunde zum Drucken
-
-**Förder- und Fordergruppen:** werden dynamisch aus der Diagnose gebildet, z. B. „Zehnerübergang unsicher“ oder „Knobel-Kinder“. Wochenplan (M7) und Stationen nutzen sie direkt.
-
-**Verlauf:** Jede Diagnose ist datiert. Du siehst die Entwicklung pro Kind und Kompetenz über die Jahre (1 → 4).
-
-### M6: Deutsch – Lesen und Schreiben über die Zeit
-**Lesen:**
-- **Digitaler Lesepass:** Minuten bzw. Seiten, Häkchen für die Unterschrift der Eltern
-- **Lesegeschwindigkeit:** Wörter pro Minute, mit Stoppuhr im Tool, Trendlinie
-- Buch-Log, Antolin-Punkte (von Hand abgelesen), Ergebnisse von Stolperwörter-Test oder Lesescreening
-- **Lautleseprotokoll** mit Fehlerarten
-
-**Schreiben und Rechtschreibung:**
-- **Grundwortschatz Bayern** als Checkliste pro Kind, mit Lernwörter-Kartei
-- Diktate bzw. Lernwörter-Checks mit Fehlerzahl und Fehlerquotient
-- **Fehlerarten** nach Hamburger Schreibprobe (HSP): lautgetreu, orthografisch, morphematisch, Groß-/Kleinschreibung. Mit Trend.
-- Eingabe der Ergebnisse aus HSP oder Oldenburger Fehleranalyse
-- Schreibproben (Foto) mit Datum im Portfolio. So lässt sich zum Beispiel „freier Text Klasse 1 gegen Klasse 2“ nebeneinander zeigen.
-
-**Sprechen und Zuhören:** Beobachtungsvorlagen, z. B. zu Erzählkreis und Vortrag
-
-### M7: Unterricht planen und durchführen
-**Kalender:**
-- Schulmanager-Kalender als **iCal-Abo** (nur lesen)
-- Bayerische Ferien sind eingebaut (KM-Ferienordnung bzw. KMK-ICS). Eigene Tage wie Wandertag oder Projektwoche kommen dazu.
-
-**Eigener Stundenplan:** Stunden pro Fach. Daraus entstehen die geplanten Stunden.
-
-**Jahres- und Sequenzplanung:**
-- Einheiten pro Fach mit Bezug zum LehrplanPLUS und geplanter Stundenzahl
-- Eine Abdeckungs-Ansicht zeigt, welche Kompetenzerwartungen schon dran waren
-- **Verschieben bei Ausfall:** Alle folgenden Stunden rutschen nach hinten, nichts wird gelöscht
-
-**Stundenplanung:**
-- Ziel, Verlauf (Phase / Zeit / Sozialform / Material), Differenzierung (Förder / Basis / Forder)
-- Materialbibliothek mit Tags: Arbeitsblätter, Bildkarten, Links, Fotos vom Tafelbild
-
-**Wochenplan bzw. Lernplan:**
-- Pflicht- und Wahlaufgaben, Sternchen-Niveaus, pro Kind oder Gruppe
-- Ausdruck als PDF fürs Kind, Abhak-Übersicht für dich
-
-**Stationenlernen:**
-- Laufzettel als PDF
-- Live-Raster Kind × Station auf dem iPad
-
-**Ich-kann-Listen** pro Einheit: kindgerechte Formulierungen, Selbsteinschätzung mit Smileys. Sie fließen ins LEG und ins Portfolio.
-
-**Hausaufgaben-Kontrolle:**
-- Tipp-Raster täglich: gemacht / fehlt / vergessen, dazu vergessenes Material
-- Nach X Mal kommt der Hinweis „Elternkontakt?“
-
-**Persönliches Stundenprotokoll:** Was lief wirklich? Ideen fürs nächste Jahr. Ist nicht das offizielle Klassenbuch.
-
-**Übernahme ins nächste Jahr:** Die Reihenfolge der Einheiten bleibt, die Termine werden neu berechnet.
-
-### M8: Klassenleben und Organisation
-**Im Klassenzimmer (Beamer bzw. Tafel-Modus):**
-- Zufallsauswahl ohne Wiederholung (Abwesende ausgeschlossen), Gruppengenerator mit Regeln
-- Timer und visueller Timer, Lärmampel, Arbeitssymbole (Flüstern, Partner, Still)
-- **Morgenkreis bzw. Tagesplan** mit Bildkarten, Datum, Wetter, Geburtstagskind, Reihenfolge im Erzählkreis
-- Widget-Dashboard mit Presets wie „Morgenkreis“, „Freiarbeit“, „Stationen“
-
-**Ämterplan:** Dienste rotieren automatisch wöchentlich. Anzeige am Beamer, Ausdruck möglich.
-
-**Belohnungssystem:**
-- Klassenziel (Murmelglas oder Punkte)
-- Individuelle Verstärkerpläne für einzelne Kinder, gekoppelt an die Akte
-
-**Klassenrat:** Themenliste („Briefkasten“), Beschlüsse, Nachverfolgung beim nächsten Termin
-
-**Organisation:**
-- **Klassenkasse:** Kakaogeld, Kopiergeld, Ausflugsgeld. Wer hat bezahlt, Saldo, Belege als Foto
-- **Rücklauf auf Papier:** Liste pro Zettel mit Häkchen, nur wo Schulmanager nicht genutzt wird
-- **Ausflug bzw. Wandertag:** Checkliste, Kosten, Begleitpersonen, Notfallnummern, Allergien. Als Vorlage wiederverwendbar
-- **Elternabend:** Tagesordnung, Wahl des Elternbeirats, Materialliste, Protokoll
-- **Materiallisten:** pro Kind (Füller fehlt) und pro Einheit (Einkauf)
-- **Geburtstage:** Erinnerung, Ritual
-- **Vertretungsmappe** mit einem Klick als PDF: Klassenliste mit Fotos, Sitzplan, Ämter, Rituale, Allergien und Medikamente, Abholregeln, Förderkinder, aktueller Wochenplan
-- **To-dos** mit natürlicher Eingabe, z. B. „Freitag Kakaogeld einsammeln“
-
-### M9: KI-Assistent (Claude, mit den Daten aus der App)
-Die Reihenfolge entspricht dem Nutzen:
-1. **Wortgutachten und Zeugnisbemerkungen** (Jgst. 1/2 verbal, Bemerkungen zum Verhalten) aus Akte, Kompetenzständen und Ich-kann-Listen. Für die ganze Klasse auf einmal, im Ton einstellbar.
-2. **LEG-Vorbereitung:** ein Entwurf für den Dokumentationsbogen und kindgerechte Zielvorschläge
-3. **Briefing zum Elterngespräch** und, aus Stichpunkten, das Protokoll
-4. **Förderideen aus Mathe-Fehlermustern**, z. B. „Was hilft bei Übertragsfehlern?“, mit Material-Vorschlägen
-5. **Differenzierung:** Arbeitsblatt in 3 Niveaus, Text in einfacher Sprache, DaZ-Hilfen
-6. **Texte zum Einfügen in Schulmanager:** Elternbrief, Einladung zum Elternabend, Info zum Ausflug
-7. Entwurf für Wochenplan bzw. Stationen zu einer Einheit
-8. **Klassen-Snapshot:** wer braucht gerade Aufmerksamkeit (Trend, Abdeckung, offene Ziele)
-9. Allgemeiner Chat mit Zugriff auf die eigenen Daten
-
-Die KI schreibt nur Entwürfe, die du immer bearbeitest, und vergibt nie selbst Noten.
-
-### M10: Dashboard „Heute“
-- Stunden mit Planung, Fokus-Kinder zum Beobachten, fällige Wiedervorlagen und To-dos
-- Geburtstage, offene Rückläufe bzw. Zahlungen
-- LEG- bzw. Zeugnis-Fortschritt in der Saison, Übertritts-Countdown
-
-### Querschnitt
-- **iPad-first:** große Tipp-Flächen, Pencil-Eingabe, Querformat, Split View, offline im Klassenzimmer
-- **Druck bzw. PDF** sauber für Wochenplan, Lesepass, Laufzettel, Ämterplan, Urkunden, LEG-Bogen, Vertretungsmappe
-- Globale Suche, JSON-Backup, CSV-Export, Papierkorb
+- **Zielwert:** Ein Eintrag braucht maximal 2 Taps oder 5 Sekunden. Die Details gibt es später im Cockpit unter „Zuletzt“.
+- **Offline:** Das WLAN im Klassenzimmer ist egal. Synchronisiert wird später.
+- **Diskret:** Ein abgedunkelter Modus, damit Kinder nicht mitlesen. Fotos landen nicht in der iPad-Fotomediathek.
 
 ---
 
-## 2. Tech-Stack (unverändert)
+## 3. Dokumentieren: nach der Stunde
 
-- **Frontend:** Vite + React 19 + TypeScript + TanStack Router als PWA, die man auf dem iPad installiert
-- **UI:** shadcn/ui (Tailwind v4)
-- **Backend:** Supabase (Postgres, Auth, Storage, Edge Functions). Die Verbindung richtest du ein.
-- **Offline:** PowerSync
-- **KI:** Claude API über eine Edge Function
-- **Bibliotheken:**
-  - Recharts für Charts
-  - @react-pdf/renderer für PDFs
-  - Tiptap für Texteditoren
-  - perfect-freehand für die Pencil-Skizzen
-  - dnd-kit für den Sitzplan
-  - Schedule-X für den Kalender
-  - ical.js für das Schulmanager-Abo und die Ferien
-- **Hosting:** Vercel
+**Stundenabschluss (2 Minuten):**
+- **Was wurde gemacht:** Thema, Kompetenz, Material, Foto vom Tafelbild
+- **Wie lief es:** Ampel, Ziel erreicht (ja / teilweise / nein), freie Notiz zur **Selbstreflexion** („Erklärphase zu lang“, „Material zu schwer für Gruppe Rot“)
+- **Auffällige Kinder** werden aus den Einträgen der Stunde automatisch gelistet. Dazu kommt ein Feld „Wer fehlt in der Doku?“
+- **Für nächstes Mal:** Notizen, die automatisch in der nächsten Stunde dieses Fachs auftauchen
+- **Sprachmemo statt Tippen:** Auf dem Heimweg diktieren. Die KI strukturiert daraus Einträge (siehe Abschnitt 6).
 
-## 3. Datenmodell (Auszug, neu bzw. geändert)
-- **Stamm:** `school_years`, `terms`, `classes` (mit `grade_level`), `subjects`, `students`, `student_support` (LRS, Notenschutz, MSD, DaZ), `guardians`
-- **Akte:** `entries`, `entry_students`, `tags`, `competencies` (LehrplanPLUS-Baum), `competency_ratings`, `goals`, `attachments` (inkl. Pencil-Skizzen)
-- **Gespräche:** `conversations` (Typ: LEG, Elterngespräch, Übertritt), `conversation_sections`, `agreements`, `self_assessments`, `contacts_log`
-- **Leistung:**
-  - `grade_settings`, `assessments` (Probe, mündlich, praktisch), `assessment_tasks`, `task_scores`, `task_errors`
-  - `grading_keys`, `report_texts` (Wortgutachten bzw. Bemerkungen), `final_grade_proposals`
-- **Mathe:** `diagnostic_templates`, `diagnostic_items`, `diagnostic_results`, `error_categories`, `fluency_results` (Blitzrechnen bzw. Einmaleins)
-- **Deutsch:** `reading_logs`, `reading_fluency`, `books`, `word_lists` (Grundwortschatz), `word_mastery`, `spelling_tests`, `spelling_errors`
-- **Planung:** `calendar_feeds`, `calendar_days`, `timetable_slots`, `units`, `lessons`, `materials`, `weekly_plans`, `weekly_plan_items`, `stations`, `station_progress`, `can_do_lists`, `homework_checks`, `todos`
-- **Klassenleben:** `rooms`, `seating_plans`, `seat_assignments`, `duties`, `duty_rotations`, `reward_systems`, `reward_events`, `class_council_items`, `widget_presets`
-- **Organisation:** `cash_ledger`, `checklists`, `checklist_items`, `trips`, `parent_evenings`
-- **KI:** `ai_runs`, `settings`
+Das ergibt ein **Stundenprotokoll**, ein persönliches Unterrichtstagebuch pro Fach. Es ist kein offizielles Klassenbuch.
 
-## 4. Reihenfolge (angepasst an das Schuljahr)
+**Sequenz-Sicht pro Fach:** Was wurde wann gemacht, welche Kompetenzen des LehrplanPLUS kamen schon vor, was hat funktioniert. Das ist zugleich die Grundlage fürs nächste Schuljahr.
 
-Heute ist der 24.11.2026. Die **LEG-Saison beginnt im Januar**, das Zwischenzeugnis kommt Mitte Februar 2027. Deshalb kommen Akte und LEG zuerst.
+---
 
-| Phase | Inhalt | Ziel |
+## 4. Verstehen: Kind und Klasse
+
+**Schülerakte (pro Kind):**
+- **Timeline:** alle Beobachtungen, Arbeitsproben, Zitate und Diagnosen. Filterbar nach Fach, Kompetenz, Art, Wertung und Zeitraum, mit Halbjahrs-Trennern
+- **Kompetenzprofil:** Fach → Lernbereich → Kompetenz (LehrplanPLUS, Mathe und Deutsch vorbefüllt). Zu jeder Kompetenz eine Trendlinie, die Belege lassen sich anklicken
+- **Sozialverhalten und Arbeitsverhalten** als eigene Verläufe, weil beides wörtlich auf Zeugnis und LEG-Bogen steht
+- **Mathe-Fehlerprofil:** Welche Fehlerarten treten wiederholt auf?
+- **Vergleich:** zwei Zeiträume nebeneinander (z. B. letztes LEG ↔ heute)
+- **Ziele:** Förderziele und vereinbarte Lernziele mit Status und Belegen
+- **Stammdaten (knapp):** Foto, Geburtstag, Kontakt der Eltern, Förderstatus (LRS/Notenschutz, sonderpädagogischer Förderbedarf über den MSD, DaZ), Allergien
+
+**Klassenblick:**
+- **Heatmap** Kind × Kompetenz: Wer kann was? Ein Klick zeigt die Belege
+- **Fehlermuster der Klasse** in Mathe. Daraus bilden sich **Förder- und Fordergruppen**, die sich laufend anpassen
+- **Abdeckungsmatrix:** Kind × Fach bzw. Bereich. Wo fehlt Dokumentation?
+- **Reflexionsverlauf:** Wie liefen meine Stunden pro Fach? Welche Methoden haben funktioniert?
+
+---
+
+## 5. Nutzen: was aus der Dokumentation entsteht
+
+Hier gibt es keine eigene Datenerfassung. Alles kommt aus den Abschnitten 2–4.
+
+- **Lernentwicklungsgespräch (Jgst. 1–3):**
+  - Der Bogen nach ISB-Muster wird vorbefüllt: Sozialverhalten, Lern- und Arbeitsverhalten, Leistungsstand, Ziele
+  - Das Kind schätzt sich selbst ein, mit Ich-kann-Liste und Smileys
+  - Am iPad gibt es eine Gesprächsansicht, danach ein PDF zum Unterschreiben
+  - Ein **Saisonplaner** zeigt für alle Kinder den Stand: vorbereitet / geführt / unterschrieben
+- **Elterngespräch:**
+  - Ein Briefing mit Stärken zuerst, Trends, Belegen und offenen Vereinbarungen
+  - Gesprächspunkte, Protokoll, Vereinbarungen mit Wiedervorlage
+  - Jedes Gespräch kommt in den **Kontaktlog** pro Kind
+- **Zeugnistexte:** Wortgutachten (Jgst. 1/2) und Bemerkungen zu Sozial- sowie Arbeitsverhalten. Der Entwurf entsteht aus der Akte, du überarbeitest ihn.
+- **Förderplan:** Ziele, Maßnahmen und Evaluation aus dem Beobachtungsverlauf
+- **Übertritt (nur bei Jgst. 4):** Notenstand in D/M/HSU im Cockpit. Dafür braucht es nur ein **leichtes Notenfeld** pro Probe, kein großes Notenbuch.
+- **Export:** Die Akte eines Kindes oder ein Zeitraum als PDF (z. B. für Förderschul-Lehrkräfte, die Schulleitung oder den Klassenwechsel)
+
+---
+
+## 6. KI im Cockpit (Claude API)
+
+Die KI arbeitet **mit den eigenen Beobachtungen**. Sie schreibt nur Entwürfe und vergibt nie Noten. Reihenfolge nach Nutzen:
+
+1. **Sprachmemo → strukturierte Einträge:** „Lena hat heute beim Zehnerübergang wieder gezählt, Tim hat Max toll geholfen.“ Daraus werden 2 Einträge: Kind, Art, Fach, Kompetenz und Wertung sind zugeordnet. Du bestätigst nur noch. *Das ist der größte Hebel für die Schnelligkeit.*
+2. **Wochenrückblick:** Auffälligkeiten, Muster, Kinder ohne Doku, Vorschläge für die Fokus-Kinder der nächsten Woche
+3. **Signale erkennen:** Trendbrüche, gehäufte Sorgen, Kompetenzen, bei denen die halbe Klasse hängt
+4. **Gesprächsvorbereitung:** LEG-Entwurf, Briefing fürs Elterngespräch, aus Stichpunkten ein Protokoll
+5. **Zeugnistexte** für die ganze Klasse auf einmal, im Ton einstellbar
+6. **Förderideen** aus Fehlermustern (z. B. „Übertrag vergessen“ → Übungen, Material)
+7. **Fragen an die eigenen Daten:** „Wie hat sich Jonas in Mathe seit September entwickelt?“
+
+**API-Key:** Bitte nicht in den Chat kopieren. Sobald die KI-Funktionen gebaut werden, öffne ich ein sicheres Formular zum Hinterlegen. Der Key liegt dann nur auf dem Server (Supabase Edge Function) und nie im Browser.
+
+---
+
+## 7. Abgrenzung
+
+| Kommt rein (Kern) | Später / optional | Bleibt draußen |
 |---|---|---|
-| **0 Setup** | Gerüst, Supabase, Login, PWA, Offline, Design | Installierbar auf iPad und Laptop |
-| **1 Fundament** | M1 (Klasse, Kinder, Fächer, Sitzplan), Schnellerfassung, Kalender-Abo und Ferien | Erste Beobachtungen, sofort |
-| **2 Akte und LEG** ⭐ | M2 komplett, M3 (LEG-Bogen, Ich-kann-Selbsteinschätzung, PDF, Saisonplaner, Kontaktlog) | **Rechtzeitig fertig für die LEG-Zeit im Januar** |
-| **3 Mathe** | M5 Diagnose und Fehleranalyse, M4 Proben pro Aufgabe, Notenbuch | Hauptfach |
-| **4 Zeugnis und Übertritt** | Wortgutachten-Editor, Notenvorschlag, Übertritts-Cockpit, KI-Zeugnistexte (M9.1–3) | Vor Übertrittszeugnis (Mai) und Jahreszeugnis (Juli) |
-| **5 Deutsch** | M6 Lesen und Rechtschreibung | |
-| **6 Unterricht** | M7 Planung, Wochenplan, Stationen, Material, Hausaufgaben | |
-| **7 Klassenleben und Orga** | M8 komplett, M10 Dashboard | |
-| **8 KI und Feinschliff** | übrige Punkte aus M9, Suche, Exporte, Druck-Feinschliff | |
+| Cockpit, Unterrichtsmodus, Stundenabschluss, Schülerakte, Klassenblick, Mathe-Diagnose, LEG, Elterngespräch, Zeugnistexte, KI 1–7 | Lesen und Rechtschreibung im Verlauf (Lesepass, Grundwortschatz), leichtes Proben-Notenbuch mit Punkten pro Aufgabe, Ich-kann-Listen pro Einheit, Wochenplan bzw. Stationen-Raster | Alles, was Schulmanager kann (Elternnachrichten, Krankmeldungen, Klassenbuch, Sprechtag), Klassenkasse, Ausflüge, Ämterplan, Belohnungssystem, Beamer-Widgets, große Jahresplanung |
 
-## 5. Unsicher, vor dem Bauen prüfen
-- **Die GrSO wurde zum 01.08.2026 geändert** (GVBl. 2026 S. 425, neue Zeugnismuster). Was genau neu ist, ließ sich hier nicht abrufen. Alle Regeln landen deshalb als **Einstellungen** in der App, nicht fest im Code.
-- **Noch nicht geklärt:**
-  - Gibt es in Jgst. 2 Noten erst ab dem 2. Halbjahr?
-  - Wie verteilen sich die 18 Proben in Jgst. 4?
-  - Darf das Jahreszeugnis in Jgst. 1 und 3 durch ein LEG ersetzt werden?
-- Ob Schulmanager Klassenlisten oder Noten exportieren kann, ist nicht dokumentiert. Bitte in deinem Account schauen. Sonst importieren wir per CSV bzw. tippen ab.
+---
 
-## 6. Fragen an dich
-1. **Welche Jahrgangsstufe hast du gerade?** Davon hängt ab, ob LEG oder Übertritt zuerst kommt.
-2. Führt deine Schule LEGs statt Zwischenzeugnis? Gibt es einen eigenen Schul-Bogen?
-3. Welche Schulmanager-Module nutzt ihr: Noten, Klassenbuch, Elternbriefe?
-4. Arbeitest du mit Apple Pencil?
-5. Wie viele Kinder hat die Klasse ungefähr? Bist du auch Fachlehrkraft in anderen Klassen?
+## 8. Technik (kurz)
+
+- **Frontend:** Vite + React + TypeScript als **PWA**, installiert auf iPad und Laptop. UI mit shadcn/ui
+- **Supabase** (Datenbank, Login, Speicher für Fotos und Audio, Edge Functions). Die Verbindung richtest du ein
+- **PowerSync** für vollen Offline-Betrieb im Klassenzimmer
+- **Claude API** über eine Edge Function. Spracherkennung zunächst über die iPad-Diktierfunktion bzw. Web Speech; eine bessere Transkription per Speech-to-Text-API ist optional
+- **Bibliotheken:** perfect-freehand (Pencil), dnd-kit (Sitzplan), Recharts (Verläufe/Heatmap), @react-pdf/renderer (LEG- und Akten-PDF), ical.js (Schulmanager-Kalender, Ferien)
+
+**Kern-Tabellen:**
+- **Klasse:** `classes`, `students`, `subjects`, `competencies`, `seating_plans`
+- **Stunden:** `lessons` (Stunde mit Schwerpunkt), `lesson_reflections`
+- **Beobachtungen:** `observations` (+ `observation_students`, `attachments`), `criteria_sets`, `criteria_ratings`, `diagnostic_results`, `error_tags`
+- **Ziele und Gespräche:** `goals`, `conversations` (LEG/Eltern), `agreements`, `contacts_log`, `self_assessments`
+- **KI und Einstellungen:** `ai_runs`, `settings`
+
+---
+
+## 9. Phasen
+
+| Phase | Inhalt | Ergebnis |
+|---|---|---|
+| **0** | Setup: PWA, Supabase, Login, Offline | Läuft auf iPad und Laptop |
+| **1** | Klasse, Kinder, Sitzplan, **Unterrichtsmodus** (freie, gezielte und Verhaltens-Beobachtung, Foto, Pencil) | Ab sofort im Unterricht beobachten |
+| **2** | **Cockpit** (Jetzt, Heute, Fokus-Kinder, Abdeckung, Zuletzt), **Stundenabschluss**, Kalender-Abo | Das tägliche Arbeitswerkzeug |
+| **3** | **Schülerakte** und **Klassenblick** (Timeline, Kompetenzprofil, Heatmap, Abdeckung) | Den Verlauf sehen |
+| **4** | **LEG** und **Elterngespräch** (Vorbefüllung, Selbsteinschätzung, PDF, Saisonplaner) | **Fertig zur LEG-Zeit im Januar 2027** |
+| **5** | **KI** 1–5 (Sprachmemo → Einträge, Wochenrückblick, Signale, Gespräche, Zeugnistexte) | Der eigentliche Vorsprung |
+| **6** | Mathe-Diagnose mit Fehlerprofil und Fördergruppen, danach Punkte aus „Später“ | Vertiefung Hauptfach |
+
+Die Phasen 1–4 sind bewusst schmal gehalten, damit sie bis Januar stehen.
+
+---
+
+## 10. Offene Fragen
+1. **Welche Jahrgangsstufe** hast du? Das entscheidet, ob LEG oder Übertritt in Phase 4 kommt.
+2. Mit „Unterrichtsbeobachtung“ ist hier vor allem gemeint: **die Kinder** beobachten plus **die eigene Stunde** reflektieren. Brauchst du auch **Hospitationen bzw. Unterrichtsbesuche** (z. B. durch Kollegen, Schulleitung, Seminar)?
+3. Nutzt du einen Apple Pencil?
+4. Gibt es an deiner Schule einen eigenen LEG-Bogen, oder nimmst du das ISB-Muster?
