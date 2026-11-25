@@ -1,10 +1,11 @@
 import clsx from 'clsx'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ChevronDown, Cloud, CloudOff, LogOut, Gauge, Grid3x3, Loader2, MessagesSquare, Moon, Presentation, Settings, Sun, Users } from 'lucide-react'
+import { Cloud, CloudOff, LogOut, Gauge, Grid3x3, Loader2, MessagesSquare, Moon, Presentation, Settings, Sun, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { db } from '../lib/db'
-import { setActiveClassId, useActiveClass, useClasses } from '../lib/hooks'
+import { db, SYNCED_TABLES } from '../lib/db'
+import { useClasses } from '../lib/hooks'
+import { ClassChip } from './ClassSwitcher'
 import { supabase, sync } from '../lib/sync'
 import { setTheme, useTheme } from '../lib/theme'
 import { signOut } from '../lib/auth'
@@ -22,7 +23,7 @@ function useAutoSync() {
   const [state, setState] = useState<'off' | 'idle' | 'syncing' | 'error'>('off')
   const dirty = useLiveQuery(async () => {
     let n = 0
-    for (const t of ['observations', 'lessons', 'students', 'classes', 'goals', 'conversations', 'seatingPlans', 'competencies', 'quickTemplates'])
+    for (const t of SYNCED_TABLES)
       n += await db.table(t).where('dirty').equals(1).count()
     return n
   })
@@ -63,29 +64,12 @@ function useAutoSync() {
 
 export function Layout() {
   const classes = useClasses()
-  const { cls } = useActiveClass()
   const { state, dirty } = useAutoSync()
   const theme = useTheme()
   const loc = useLocation()
   const live = /^\/unterricht\/.+/.test(loc.pathname)
 
-  const classSelect = classes && classes.length > 0 && (
-    <div className="relative">
-      <select
-        value={cls?.id}
-        onChange={(e) => setActiveClassId(e.target.value)}
-        aria-label="Klasse wählen"
-        className="w-full appearance-none rounded-xl bg-slate-100 py-2 pr-8 pl-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200/60 outline-none ring-inset hover:bg-slate-200/60"
-      >
-        {classes.map((c) => (
-          <option key={c.id} value={c.id}>
-            Klasse {c.name} · Jgst. {c.gradeLevel}
-          </option>
-        ))}
-      </select>
-      <ChevronDown size={16} className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-slate-400" />
-    </div>
-  )
+  const classSelect = classes && classes.length > 0 && <ClassChip />
 
   return (
     <div className="flex h-full flex-col lg:flex-row">
@@ -139,7 +123,7 @@ export function Layout() {
         {!live && (
           <header className="flex items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 py-2.5 backdrop-blur-xl lg:hidden print:hidden">
             <img src="/favicon.svg" alt="" className="size-7 rounded-lg" />
-            <div className="min-w-0 flex-1">{classSelect || <span className="text-sm text-slate-500">Noch keine Klasse</span>}</div>
+            <div className="min-w-0 flex-1">{classes && classes.length > 0 ? <ClassChip compact /> : <span className="text-sm text-slate-500">Noch keine Klasse</span>}</div>
             <SyncBadge state={state} dirty={dirty} compact />
           </header>
         )}
