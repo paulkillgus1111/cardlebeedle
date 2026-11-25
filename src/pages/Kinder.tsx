@@ -228,7 +228,7 @@ function Akte({ id }: { id: string }) {
   const usedIds = new Set(obs.map((o) => o.competencyId).filter(Boolean))
   const profileComps = [...comps, ...allComps.filter((c) => usedIds.has(c.id) && !comps.some((x) => x.id === c.id))]
   const openGoals = goals.filter((g) => g.status !== 'erreicht' && g.status !== 'verworfen').length
-  const ctx = (edit?: Observation): CaptureContext => ({ classId: cls.id, gradeLevel: cls.gradeLevel, students, competencies: comps, studentIds: [id], edit })
+  const ctx = (edit?: Observation): CaptureContext => ({ classId: cls.id, gradeLevel: cls.gradeLevel, subjects: cls.subjects, students, competencies: comps, studentIds: [id], edit })
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-8">
