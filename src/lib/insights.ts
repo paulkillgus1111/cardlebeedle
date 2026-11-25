@@ -63,7 +63,7 @@ export interface Signal {
 }
 
 /** Einfache, nachvollziehbare Regeln – bewusst ohne KI. */
-export function signals(students: Student[], obs: Observation[], comps: Competency[], goals: Goal[]): Signal[] {
+export function signals(students: Student[], obs: Observation[], comps: Competency[], goals: Goal[], subjects: string[] = ['Deutsch', 'Mathematik']): Signal[] {
   const out: Signal[] = []
   const d14 = daysAgo(14)
   const d30 = daysAgo(30)
@@ -98,6 +98,8 @@ export function signals(students: Student[], obs: Observation[], comps: Competen
   const due = goals.filter((g) => g.status === 'offen' && g.due && g.due <= today() && name(g.studentId))
   for (const g of due) out.push({ id: `goal-${g.id}`, tone: 'info', studentId: g.studentId, text: `${name(g.studentId)}: Ziel fällig – „${g.text}“` })
 
+  for (const b of balanceIssues(students, obs, subjects)) out.push({ id: `bal-${b.studentId}-${b.text.length}`, tone: 'info', studentId: b.studentId, text: b.text })
+
   const order = { warn: 0, info: 1, good: 2 }
   return out.sort((a, b) => order[a.tone] - order[b.tone])
 }
@@ -113,3 +115,47 @@ export function latestLevels(obs: Observation[]) {
 }
 
 export const agoText = (days: number) => (days === Infinity ? 'noch nie beobachtet' : days === 0 ? 'heute beobachtet' : days === 1 ? 'gestern beobachtet' : `zuletzt vor ${days} Tagen`)
+
+/* ───────────── Fokus-Rotation & Balance (Fairness) ───────────── */
+
+/**
+ * Fokus-Kinder für eine Stunde: wer am längsten nicht beobachtet wurde, offene Ziele,
+ * und – falls Schwerpunkt-Kompetenzen gesetzt – wer dort noch keine Einschätzung hat.
+ */
+export function focusRotation(students: Student[], obs: Observation[], goals: Goal[], focusCompetencyIds: string[] = [], n = 5): Student[] {
+  const openGoal = new Set(goals.filter((g) => g.status === 'offen').map((g) => g.studentId))
+  const score = (s: Student) => {
+    const mine = obs.filter((o) => o.studentIds.includes(s.id) && !o.seenOnly)
+    const last = mine.reduce<string | undefined>((m, o) => (!m || o.date > m ? o.date : m), undefined)
+    const days = Math.min(60, daysSince(last))
+    const missingFocus = focusCompetencyIds.filter((c) => !mine.some((o) => o.competencyId === c)).length
+    return days + (openGoal.has(s.id) ? 5 : 0) + missingFocus * 4 - Math.min(10, mine.filter((o) => o.date >= daysAgo(14)).length) * 2
+  }
+  return [...students].sort((a, b) => score(b) - score(a)).slice(0, n)
+}
+
+export interface BalanceIssue {
+  studentId: string
+  text: string
+}
+
+/** Einseitige Dokumentation erkennen (nur für die Lehrkraft sichtbar). */
+export function balanceIssues(students: Student[], obs: Observation[], subjects: string[]): BalanceIssue[] {
+  const out: BalanceIssue[] = []
+  const d42 = daysAgo(42)
+  for (const s of students) {
+    const mine = obs.filter((o) => o.studentIds.includes(s.id) && o.date >= d42 && !o.seenOnly)
+    if (mine.length < 4) continue
+    const neg = mine.filter((o) => o.valence === 'neg').length
+    const pos = mine.filter((o) => o.valence === 'pos').length
+    if (neg >= 3 && pos === 0) out.push({ studentId: s.id, text: `${s.firstName}: seit 6 Wochen nur kritische Einträge – gibt es Stärken?` })
+    else if (pos >= 6 && neg === 0 && !mine.some((o) => o.kind === 'foerderbedarf' || o.nextStep)) out.push({ studentId: s.id, text: `${s.firstName}: nur positive Einträge – gibt es nächste Schritte?` })
+    const behaviourOnly = mine.every((o) => o.kind === 'arbeitsverhalten' || o.kind === 'sozialverhalten' || o.kind === 'vorfall')
+    if (behaviourOnly) out.push({ studentId: s.id, text: `${s.firstName}: nur Verhalten dokumentiert, noch kein Lernstand` })
+    const covered = new Set(mine.map((o) => o.subject).filter(Boolean))
+    const core = subjects.filter((x) => x === 'Deutsch' || x === 'Mathematik')
+    const missing = core.filter((x) => !covered.has(x))
+    if (missing.length && mine.length >= 6) out.push({ studentId: s.id, text: `${s.firstName}: seit 6 Wochen nichts in ${missing.join(' und ')}` })
+  }
+  return out
+}

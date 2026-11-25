@@ -14,9 +14,10 @@ const cors = {
 
 const BASE = `Du unterstützt eine Grundschullehrkraft in Bayern (Klassenlehrkraft, LehrplanPLUS) bei der Dokumentation von Beobachtungen.
 Schreibe auf Deutsch, sachlich, wertschätzend und stärkenorientiert. Erfinde nichts: Stütze dich nur auf die gelieferten Daten.
-Wenn Daten fehlen, sag das knapp. Du lieferst nur Entwürfe, die Lehrkraft entscheidet.`
+Wenn Daten fehlen, sag das knapp. Du lieferst nur Entwürfe, die Lehrkraft entscheidet.
+Fairness: Formuliere für alle Kinder gleich konkret und gleich ehrlich. Keine pauschalen Floskeln, kein übertriebenes Lob, keine Eigenschaftszuschreibungen (z. B. „faul“, „schwach“) – beschreibe beobachtbares Verhalten und Können.`
 
-type Task = 'structure' | 'weekly' | 'leg' | 'report' | 'ask' | 'foerder'
+type Task = 'structure' | 'weekly' | 'leg' | 'report' | 'ask' | 'foerder' | 'suggest' | 'nextstep' | 'leg2' | 'report2'
 
 const PROMPTS: Record<Task, string> = {
   structure: `Die Lehrkraft hat nach der Stunde frei diktiert. Zerlege das Diktat in einzelne Beobachtungen – eine pro Kind und Aussage (mehrere Kinder in einem Eintrag nur, wenn die Aussage für alle gilt).
@@ -38,10 +39,67 @@ Jahrgangsstufe 1 und 2 (verbal): zusammenhängendes Wortgutachten mit den Teilen
 Jahrgangsstufe 3 und 4: Bemerkungen zum Sozial- sowie Lern- und Arbeitsverhalten (ca. 60–100 Wörter, dritte Person).
 Keine Noten nennen. Nur Fließtext, keine Überschriften.`,
   ask: `Beantworte die Frage der Lehrkraft anhand der gelieferten Dokumentation. Kurz und konkret, mit Datumsbezug zu den Belegen. Markdown erlaubt.`,
+  suggest: `Ordne eine einzelne Unterrichtsbeobachtung ein. Wähle höchstens 3 passende Kompetenzen aus der gelieferten Liste (nur IDs aus der Liste, sonst leer), schlage die Art (kind) und die Wertung (valence) vor und – falls die Beobachtung eine Einschätzung enthält – eine Stufe (1 nicht, 2 teilweise, 3 überwiegend, 4 sicher; sonst 0). Markiere in "traitWords" wertende Eigenschaftswörter aus dem Text (z. B. „faul“, „schwach“, „unkonzentriert“), die besser durch beobachtbares Verhalten ersetzt würden.`,
+  nextstep: `Schlage zu einer Beobachtung 3 kurze, konkrete nächste Schritte vor (Feed-forward), passend zur Jahrgangsstufe und Stufe: was das Kind als Nächstes üben/erfahren sollte, mit einem konkreten Material/Übungsformat. Jeweils max. 15 Wörter, als Ich-/Kind-nahes Ziel oder Maßnahme formuliert.`,
+  leg2: `Formuliere Entwürfe für den Dokumentationsbogen eines Lernentwicklungsgesprächs (ISB-Muster) bzw. eines Elterngesprächs.
+Jeder Abschnitt besteht aus 2–5 einzelnen Sätzen. JEDER Satz nennt in "evidence" die IDs (z. B. "e3") der Belege, auf die er sich stützt. Sätze ohne Beleg nur, wenn es eine allgemeine Überleitung ist – dann "evidence" leer lassen.
+Stärken zuerst, dann Entwicklungsfelder. Für "ziele": 1–3 kindgerechte, SMARTe Ich-Ziele ("Ich übe …, indem …").
+Abschnitte ohne Belege: ein Satz "Keine Beobachtungen im Zeitraum." mit leerer evidence.`,
+  report2: `Formuliere einen Zeugnistext-Entwurf als Liste einzelner Sätze. JEDER Satz nennt in "evidence" die IDs der Belege (z. B. "e3"), auf die er sich stützt; Sätze ohne Beleg nur für Überleitungen (evidence leer).
+Jahrgangsstufe 1 und Zwischenzeugnis Jgst. 2 (verbal): Wortgutachten mit Sozialverhalten, Lern- und Arbeitsverhalten und Leistungsstand in den Fächern (ca. 120–200 Wörter); Anrede laut Feld "anrede".
+Ab Jahreszeugnis Jgst. 2 und in Jgst. 3/4: nur Bemerkungen zum Sozial- sowie Lern- und Arbeitsverhalten (ca. 60–100 Wörter, dritte Person).
+Belege mit "gruppenarbeit: ja" dürfen nicht als Leistungsbewertung dienen. Keine Noten nennen.`,
   foerder: `Schlage konkrete Förderideen vor (Markdown): kurze Diagnose der Schwierigkeit, 4–6 konkrete Übungen/Materialien für die Grundschule (z. B. Material, Spielform, Sprechanlass), Differenzierung für die betroffene Gruppe, woran man Fortschritt erkennt.`,
 }
 
+const SENTENCE = {
+          type: 'object',
+          additionalProperties: false,
+          required: ['text', 'evidence'],
+          properties: { text: { type: 'string' }, evidence: { type: 'array', items: { type: 'string' } } },
+        }
+
 const SCHEMAS: Partial<Record<Task, Record<string, unknown>>> = {
+  suggest: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['competencyIds', 'kind', 'valence', 'level', 'traitWords'],
+    properties: {
+      competencyIds: { type: 'array', items: { type: 'string' } },
+      kind: { type: 'string', enum: ['beobachtung', 'lernstand', 'arbeitsverhalten', 'sozialverhalten', 'staerke', 'foerderbedarf', 'vorfall', 'zitat'] },
+      valence: { type: 'string', enum: ['pos', 'neu', 'neg'] },
+      level: { type: 'integer', enum: [0, 1, 2, 3, 4] },
+      traitWords: { type: 'array', items: { type: 'string' } },
+    },
+  },
+  nextstep: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['steps'],
+    properties: { steps: { type: 'array', items: { type: 'string' } } },
+  },
+  leg2: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['sections'],
+    properties: {
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'sentences'],
+          properties: { id: { type: 'string' }, sentences: { type: 'array', items: SENTENCE } },
+        },
+      },
+    },
+  },
+  report2: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['sentences'],
+    properties: { sentences: { type: 'array', items: SENTENCE } },
+  },
   structure: {
     type: 'object',
     additionalProperties: false,
@@ -106,7 +164,7 @@ Deno.serve(async (req) => {
       max_tokens: 16000,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      output_config: { effort: task === 'structure' ? 'low' : 'medium', ...(schema ? { format: { type: 'json_schema', schema } } : {}) },
+      output_config: { effort: task === 'structure' || task === 'suggest' || task === 'nextstep' ? 'low' : 'medium', ...(schema ? { format: { type: 'json_schema', schema } } : {}) },
       system: [{ type: 'text', text: `${BASE}\n\n${PROMPTS[task]}` }],
       messages: [{ role: 'user', content: `Daten (JSON):\n${JSON.stringify(data)}` }],
     } as Anthropic.Beta.MessageCreateParamsNonStreaming)

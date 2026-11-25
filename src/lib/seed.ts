@@ -226,3 +226,30 @@ export const compareCompetencies = (a: Competency, b: Competency) =>
   a.subject.localeCompare(b.subject) ||
   a.area.localeCompare(b.area) ||
   a.text.localeCompare(b.text)
+
+/** Lern-/Arbeits- und Sozialverhalten als beobachtbare Aussagen mit Häufigkeitsskala (zuverlässiger als Gesamturteile). */
+export const BEHAVIOR_ITEMS: { id: string; area: 'arbeitsverhalten' | 'sozialverhalten'; text: string }[] = [
+  { id: 'av-beginnt', area: 'arbeitsverhalten', text: 'beginnt Aufgaben selbstständig' },
+  { id: 'av-ausdauer', area: 'arbeitsverhalten', text: 'arbeitet ausdauernd bis zum Ende' },
+  { id: 'av-konzentration', area: 'arbeitsverhalten', text: 'arbeitet konzentriert, lässt sich wenig ablenken' },
+  { id: 'av-sorgfalt', area: 'arbeitsverhalten', text: 'arbeitet sorgfältig und ordentlich' },
+  { id: 'av-hilfe', area: 'arbeitsverhalten', text: 'holt sich bei Bedarf Hilfe' },
+  { id: 'av-material', area: 'arbeitsverhalten', text: 'hat Arbeitsmaterial dabei und geordnet' },
+  { id: 'av-mitarbeit', area: 'arbeitsverhalten', text: 'beteiligt sich am Unterrichtsgespräch' },
+  { id: 'sv-regeln', area: 'sozialverhalten', text: 'hält Gesprächs- und Klassenregeln ein' },
+  { id: 'sv-hilft', area: 'sozialverhalten', text: 'hilft anderen und nimmt Rücksicht' },
+  { id: 'sv-kooperation', area: 'sozialverhalten', text: 'arbeitet mit anderen gut zusammen' },
+  { id: 'sv-konflikt', area: 'sozialverhalten', text: 'löst Konflikte mit Worten' },
+  { id: 'sv-kritik', area: 'sozialverhalten', text: 'geht mit Kritik und Misserfolg angemessen um' },
+]
+
+export const FREQUENCY_LABEL = ['', 'nie', 'selten', 'oft', 'immer'] as const
+
+/** Allgemeine Indikatoren je Kompetenzstufe – pro Kompetenz überschreibbar. */
+export const DEFAULT_LEVEL_HINTS = [
+  '',
+  'zeigt die Kompetenz noch nicht, auch nicht mit Hilfe',
+  'gelingt mit Hilfe oder nur bei einfachen Aufgaben',
+  'gelingt meist selbstständig, vereinzelt Fehler',
+  'gelingt sicher, selbstständig und kann es erklären',
+] as const

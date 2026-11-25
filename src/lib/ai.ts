@@ -1,8 +1,8 @@
 import type { Competency, Goal, Lesson, Observation, SchoolClass, Student } from './db'
-import { KIND_LABEL, LEVEL_LABEL } from './seed'
+import { BEHAVIOR_ITEMS, FREQUENCY_LABEL, KIND_LABEL, LEVEL_LABEL } from './seed'
 import { supabase } from './sync'
 
-export type AiTask = 'structure' | 'weekly' | 'leg' | 'report' | 'ask' | 'foerder'
+export type AiTask = 'structure' | 'weekly' | 'leg' | 'report' | 'ask' | 'foerder' | 'suggest' | 'nextstep' | 'leg2' | 'report2'
 
 export class AiError extends Error {}
 
@@ -35,6 +35,9 @@ export function obsLine(o: Observation, comps: Competency[], students?: Student[
     o.valence === 'pos' ? 'positiv' : o.valence === 'neg' ? 'Sorge' : 'neutral',
     o.subject ?? '',
     c ? `${c.text}${o.level ? `: ${LEVEL_LABEL[o.level]}` : ''}` : '',
+    o.scaleItemId && o.frequency ? `${BEHAVIOR_ITEMS.find((b) => b.id === o.scaleItemId)?.text ?? ''}: ${FREQUENCY_LABEL[o.frequency]}` : '',
+    o.groupWork ? 'gruppenarbeit: ja' : '',
+    // Nur der beobachtete Fakt – die Deutung (interpretation) wird bewusst NICHT übergeben
     o.text,
   ]
     .filter(Boolean)
@@ -47,7 +50,7 @@ export function studentContext(s: Student, cls: SchoolClass, obs: Observation[],
     kind: `${s.firstName} ${s.lastName}`,
     klasse: cls.name,
     jahrgangsstufe: cls.gradeLevel,
-    foerderstatus: s.support,
+    // Förderstatus (LRS, DaZ, MSD …) wird bewusst NICHT übergeben – verzerrt nachweislich KI-Texte
     beobachtungen: mine.map((o) => obsLine(o, comps)),
     ziele: goals.filter((g) => g.studentId === s.id).map((g) => `${g.text} (${g.status})`),
   }
@@ -64,5 +67,38 @@ export function classContext(cls: SchoolClass, students: Student[], obs: Observa
     stunden: lessons
       .filter((l) => l.date >= since)
       .map((l) => [l.date, l.subject, l.topic, l.reflection?.rating, l.reflection?.note].filter(Boolean).join(' | ')),
+  }
+}
+
+/** Belege mit kurzen IDs (e1, e2 …) für KI-Texte, die ihre Belege zitieren sollen. */
+export function evidenceContext(obs: Observation[], comps: Competency[]) {
+  const sorted = [...obs].filter((o) => !o.seenOnly).sort((a, b) => a.date.localeCompare(b.date))
+  const map = new Map<string, Observation>()
+  const items = sorted.map((o, i) => {
+    const id = `e${i + 1}`
+    map.set(id, o)
+    return { id, beleg: obsLine(o, comps) }
+  })
+  return { items, map }
+}
+
+export interface CitedSentence {
+  text: string
+  evidence: string[]
+}
+
+/** Studenten-Kontext mit Beleg-IDs statt reiner Zeilen (für leg2/report2). */
+export function studentEvidenceContext(s: Student, cls: SchoolClass, obs: Observation[], comps: Competency[], goals: Goal[]) {
+  const mine = obs.filter((o) => o.studentIds.includes(s.id))
+  const ev = evidenceContext(mine, comps)
+  return {
+    data: {
+      kind: s.firstName,
+      klasse: cls.name,
+      jahrgangsstufe: cls.gradeLevel,
+      belege: ev.items,
+      ziele: goals.filter((g) => g.studentId === s.id).map((g) => `${g.text} (${g.status})`),
+    },
+    map: ev.map,
   }
 }

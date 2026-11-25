@@ -20,7 +20,22 @@ export interface SchoolClass extends Base {
   gradeLevel: GradeLevel
   schoolYear: string
   subjects: string[]
+  /** 'klasse' (Standard) oder 'gruppe' (z. B. Religion, Förderkurs – Kinder aus mehreren Klassen) */
+  kind?: 'klasse' | 'gruppe'
+  /** Nur bei Gruppen: Mitglieder (Kinder bleiben in ihrer Stammklasse) */
+  memberIds?: ID[]
+  /** Farbschlüssel aus CLASS_COLORS */
+  color?: string
+  archived?: 0 | 1
+  /** Bei Versetzung: Klasse des Vorjahres */
+  previousClassId?: ID
 }
+
+/** Farben für Klassen/Gruppen (Tailwind-Farbnamen). */
+export const CLASS_COLORS = ['teal', 'sky', 'violet', 'amber', 'rose', 'lime', 'orange', 'indigo', 'pink', 'emerald'] as const
+export type ClassColor = (typeof CLASS_COLORS)[number]
+
+export const isGroup = (c?: Pick<SchoolClass, 'kind'>) => c?.kind === 'gruppe'
 
 export interface Support {
   lrs?: boolean
@@ -40,6 +55,8 @@ export interface Student extends Base {
   info?: string
   /** Zeugnistext-Entwürfe, Schlüssel z. B. "2026/27 Jahreszeugnis" */
   reports?: Record<string, string>
+  /** Frühere Klassen (bei Versetzung) */
+  history?: { classId: ID; schoolYear: string; className: string }[]
 }
 
 export interface Competency extends Base {
@@ -49,6 +66,10 @@ export interface Competency extends Base {
   /** Doppeljahrgangsstufe nach LehrplanPLUS */
   band: '1/2' | '3/4'
   builtin?: boolean
+  /** Beobachtbare Indikatoren je Stufe 1–4 (nicht · teilweise · überwiegend · sicher) */
+  indicators?: [string?, string?, string?, string?]
+  /** Ankerbeispiele: Beobachtungs-IDs je Stufe */
+  anchors?: Partial<Record<1 | 2 | 3 | 4, ID[]>>
 }
 
 export interface Seat {
@@ -132,6 +153,19 @@ export interface Observation extends Base {
   shareable?: boolean
   attachments: Attachment[]
   followUp?: string // ISO-Datum Wiedervorlage
+  /** Optionale Deutung – getrennt vom beobachteten Fakt (text). Wird NICHT als Beleg an die KI gegeben. */
+  interpretation?: string
+  /** Nächster Schritt / Förderidee (Feed-forward) */
+  nextStep?: string
+  /** In Gruppenarbeit entstanden → nicht notenrelevant (§ 11 Abs. 1 GrSO, ab 01.08.2026) */
+  groupWork?: boolean
+  /** Roh erfasst (Diktat/Skizze), noch nicht einsortiert */
+  unsorted?: boolean
+  /** Verhaltensskala: Item-ID aus BEHAVIOR_ITEMS + Häufigkeit 1 nie · 2 selten · 3 oft · 4 immer */
+  scaleItemId?: string
+  frequency?: 1 | 2 | 3 | 4
+  /** „Gesehen, unauffällig“ aus dem Stundenende-Durchgang */
+  seenOnly?: boolean
 }
 
 export interface Goal extends Base {
@@ -145,6 +179,11 @@ export interface Goal extends Base {
   createdAt: string
   /** z. B. LEG/Elterngespräch, aus dem das Ziel stammt */
   conversationId?: ID
+  /** SMART: wer ist verantwortlich, wie wird geübt */
+  owner?: 'kind' | 'eltern' | 'lehrkraft'
+  strategy?: string
+  /** Aus welcher Beobachtung (Nächster Schritt) entstanden */
+  sourceObservationId?: ID
 }
 
 export interface QuickTemplate extends Base {
@@ -171,6 +210,15 @@ export interface Conversation extends Base {
   notes?: string
 }
 
+/** Stundenplan-Eintrag: Wochentag × Stunde → Klasse/Gruppe + Fach */
+export interface TimetableSlot extends Base {
+  weekday: 1 | 2 | 3 | 4 | 5
+  period: number
+  classId: ID
+  subject: string
+  room?: string
+}
+
 export interface Meta {
   key: string
   value: unknown
@@ -186,6 +234,7 @@ export class CockpitDB extends Dexie {
   goals!: Table<Goal, ID>
   quickTemplates!: Table<QuickTemplate, ID>
   conversations!: Table<Conversation, ID>
+  timetable!: Table<TimetableSlot, ID>
   meta!: Table<Meta, string>
 
   constructor(name: string) {
@@ -201,6 +250,10 @@ export class CockpitDB extends Dexie {
       quickTemplates: 'id, order, updatedAt, dirty',
       conversations: 'id, studentId, classId, type, date, updatedAt, dirty',
       meta: 'key',
+    })
+    this.version(2).stores({
+      classes: 'id, kind, archived, updatedAt, dirty',
+      timetable: 'id, classId, weekday, updatedAt, dirty',
     })
   }
 }
@@ -250,6 +303,7 @@ export const SYNCED_TABLES = [
   'goals',
   'quickTemplates',
   'conversations',
+  'timetable',
 ] as const
 export type SyncedTable = (typeof SYNCED_TABLES)[number]
 
@@ -280,11 +334,15 @@ export async function setMeta(key: string, value: unknown) {
 /** Klasse inkl. aller abhängigen Daten weich löschen. */
 export async function removeClass(classId: ID) {
   const t = now()
-  const tables = [db.students, db.observations, db.lessons, db.goals, db.conversations, db.seatingPlans] as Table<Base & { classId: ID }, ID>[]
+  const tables = [db.students, db.observations, db.lessons, db.goals, db.conversations, db.seatingPlans, db.timetable] as Table<Base & { classId: ID }, ID>[]
   await db.transaction('rw', [db.classes, ...tables], async () => {
+    // Kinder, die inzwischen in einer anderen Klasse sind (Versetzung), behalten ihren Verlauf
+    const moved = new Set((await db.students.toArray()).filter((s) => !s.deleted && s.classId !== classId).map((s) => s.id))
+    const keep = (r: Base & { classId: ID; studentId?: ID; studentIds?: ID[] }) =>
+      (r.studentId && moved.has(r.studentId)) || (r.studentIds?.some((id) => moved.has(id)) ?? false)
     for (const table of tables) {
-      const rows = await table.where('classId').equals(classId).toArray()
-      await table.bulkPut(rows.filter((r) => !r.deleted).map((r) => ({ ...r, deleted: 1 as const, dirty: 1 as const, updatedAt: t })))
+      const rows = (await table.where('classId').equals(classId).toArray()) as (Base & { classId: ID; studentId?: ID; studentIds?: ID[] })[]
+      await table.bulkPut(rows.filter((r) => !r.deleted && !keep(r)).map((r) => ({ ...r, deleted: 1 as const, dirty: 1 as const, updatedAt: t })))
     }
     const c = await db.classes.get(classId)
     if (c) await db.classes.put({ ...c, deleted: 1, dirty: 1, updatedAt: t })
