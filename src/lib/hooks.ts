@@ -118,8 +118,16 @@ export async function setPeriods(p: PeriodTime[]) {
   await setMeta('periodTimes', p)
 }
 
+/** Stundenplan – ohne Einträge archivierter oder gelöschter Klassen/Gruppen. */
 export function useTimetable(): TimetableSlot[] {
-  return useLiveQuery(async () => alive(await db.timetable.toArray()).sort((a, b) => a.weekday - b.weekday || a.period - b.period)) ?? []
+  return (
+    useLiveQuery(async () => {
+      const active = new Set(alive(await db.classes.toArray()).filter((c) => !c.archived).map((c) => c.id))
+      return alive(await db.timetable.toArray())
+        .filter((s) => active.has(s.classId))
+        .sort((a, b) => a.weekday - b.weekday || a.period - b.period)
+    }) ?? []
+  )
 }
 
 /** Minütlich aktualisierte Uhrzeit. */

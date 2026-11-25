@@ -249,7 +249,13 @@ export default function Cockpit() {
       cls: d.cls,
     }))
   }
-  const focus = all ? perClass.flatMap((d) => focusList(d, 2)) : focusList({ students, obs, goals, cls }, 4)
+  // Alle Klassen: je Klasse 2 Kinder, jedes Kind nur einmal (Kinder können zusätzlich in Gruppen sein)
+  const focus = all
+    ? (() => {
+        const seen = new Set<string>()
+        return perClass.flatMap((d) => focusList(d, 4).filter((f) => !seen.has(f.student.id) && (seen.add(f.student.id), true)).slice(0, 2))
+      })()
+    : focusList({ students, obs, goals, cls }, 4)
 
   const greeting = `Guten ${new Date().getHours() < 11 ? 'Morgen' : new Date().getHours() < 17 ? 'Tag' : 'Abend'}`
 

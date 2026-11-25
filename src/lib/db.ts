@@ -334,11 +334,15 @@ export async function setMeta(key: string, value: unknown) {
 /** Klasse inkl. aller abhängigen Daten weich löschen. */
 export async function removeClass(classId: ID) {
   const t = now()
-  const tables = [db.students, db.observations, db.lessons, db.goals, db.conversations, db.seatingPlans] as Table<Base & { classId: ID }, ID>[]
+  const tables = [db.students, db.observations, db.lessons, db.goals, db.conversations, db.seatingPlans, db.timetable] as Table<Base & { classId: ID }, ID>[]
   await db.transaction('rw', [db.classes, ...tables], async () => {
+    // Kinder, die inzwischen in einer anderen Klasse sind (Versetzung), behalten ihren Verlauf
+    const moved = new Set((await db.students.toArray()).filter((s) => !s.deleted && s.classId !== classId).map((s) => s.id))
+    const keep = (r: Base & { classId: ID; studentId?: ID; studentIds?: ID[] }) =>
+      (r.studentId && moved.has(r.studentId)) || (r.studentIds?.some((id) => moved.has(id)) ?? false)
     for (const table of tables) {
-      const rows = await table.where('classId').equals(classId).toArray()
-      await table.bulkPut(rows.filter((r) => !r.deleted).map((r) => ({ ...r, deleted: 1 as const, dirty: 1 as const, updatedAt: t })))
+      const rows = (await table.where('classId').equals(classId).toArray()) as (Base & { classId: ID; studentId?: ID; studentIds?: ID[] })[]
+      await table.bulkPut(rows.filter((r) => !r.deleted && !keep(r)).map((r) => ({ ...r, deleted: 1 as const, dirty: 1 as const, updatedAt: t })))
     }
     const c = await db.classes.get(classId)
     if (c) await db.classes.put({ ...c, deleted: 1, dirty: 1, updatedAt: t })

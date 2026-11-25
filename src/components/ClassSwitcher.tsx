@@ -34,7 +34,7 @@ export function ClassChip({ compact }: { compact?: boolean }) {
         <ClassDot c={cls} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-slate-900">{cls ? (isGroup(cls) ? cls.name : `Klasse ${cls.name}`) : 'Keine Klasse'}</span>
-          {!compact && cls && <span className="block truncate text-xs text-slate-500">{isGroup(cls) ? `Gruppe · ${cls.subjects.join(', ')}` : `Jgst. ${cls.gradeLevel} · ${cls.schoolYear}`}</span>}
+          {!compact && cls && <span className="block truncate text-xs text-slate-500">{isGroup(cls) ? ['Gruppe', cls.subjects.join(', ')].filter(Boolean).join(' · ') : `Jgst. ${cls.gradeLevel} · ${cls.schoolYear}`}</span>}
         </span>
         <ChevronDown size={16} className="shrink-0 text-slate-400" />
       </button>
