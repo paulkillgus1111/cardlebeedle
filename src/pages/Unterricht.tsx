@@ -350,6 +350,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
   const ctx = (studentIds: string[]): CaptureContext => ({
     classId: lesson.classId,
     gradeLevel: cls.gradeLevel,
+    subjects: cls.subjects,
     students,
     competencies: comps,
     studentIds,
