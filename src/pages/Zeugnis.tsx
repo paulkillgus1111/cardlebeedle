@@ -156,7 +156,7 @@ function ZeugnisKlasse({ cls }: { cls: SchoolClass }) {
             </Card>
           )
         })}
-        {!students.length && <Empty icon={Users}>Noch keine Kinder in dieser Klasse.</Empty>}
+        {!students.length && <Empty icon={Users}>{isGroup(cls) ? 'Diese Gruppe hat noch keine Mitglieder.' : 'Noch keine Kinder in dieser Klasse.'}</Empty>}
         {!!students.length && !shown.length && <Empty icon={FileText}>{filter === 'pruefen' ? 'Keine Entwürfe offen.' : 'Alle Kinder haben schon einen Entwurf.'}</Empty>}
       </div>
     </div>

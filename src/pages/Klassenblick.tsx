@@ -6,10 +6,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AiTextSheet } from '../components/AiSheets'
 import { Avatar, Button, Card, Empty, PageHeader, Segmented } from '../components/ui'
 import { ai, obsLine } from '../lib/ai'
-import { alive, db, type Lesson, type Observation } from '../lib/db'
+import { alive, db, isGroup, type Competency, type Lesson, type Observation, type SchoolClass } from '../lib/db'
 import { useActiveClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
 import { daysAgo, latestLevels } from '../lib/insights'
-import { LEVEL_LABEL } from '../lib/seed'
+import { DEFAULT_LEVEL_HINTS, LEVEL_LABEL } from '../lib/seed'
+import { ClassDot } from '../components/ClassSwitcher'
 
 const LEVEL_BG = ['bg-slate-100', 'bg-rose-300', 'bg-amber-300', 'bg-lime-300', 'bg-emerald-400']
 const RATING_BG = { gruen: 'bg-emerald-500', gelb: 'bg-amber-400', rot: 'bg-rose-500' } as const
@@ -19,6 +20,19 @@ const shortDate = (d: string) => d.slice(5).split('-').reverse().join('.')
 
 type View = 'kompetenzen' | 'abdeckung' | 'reflexion'
 
+/** Beobachtbarer Indikator einer Stufe (kompetenzeigen, sonst allgemein). */
+const indicator = (c: Competency, level?: number) => (level ? c.indicators?.[level - 1]?.trim() || DEFAULT_LEVEL_HINTS[level] : '')
+
+/** Kleines Stammklassen-Kennzeichen in Gruppen. */
+function HomeTag({ c }: { c?: SchoolClass }) {
+  if (!c) return null
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-normal text-slate-400">
+      <ClassDot c={c} className="!size-2" /> {c.name}
+    </span>
+  )
+}
+
 export default function Klassenblick() {
   const nav = useNavigate()
   const { cls } = useActiveClass()
@@ -26,6 +40,7 @@ export default function Klassenblick() {
   const obs = useObservations(cls?.id)
   const comps = useCompetencies(cls)
   const lessons = useLiveQuery(async () => (cls ? alive(await db.lessons.where('classId').equals(cls.id).toArray()) : []), [cls?.id]) ?? []
+  const classById = useLiveQuery(async () => new Map(alive(await db.classes.toArray()).map((c) => [c.id, c])), []) ?? new Map<string, SchoolClass>()
   const [view, setView] = useState<View>('kompetenzen')
   const [subjectPick, setSubject] = useState('Mathematik')
   const [cell, setCell] = useState<{ sid: string; cid: string } | null>(null)
@@ -42,7 +57,9 @@ export default function Klassenblick() {
 
   const areas = ['Sozialverhalten', 'Arbeitsverhalten', ...cls.subjects]
   const d60 = daysAgo(60)
-  const recent = obs.filter((o) => o.date >= d60)
+  // „Gesehen, unauffällig“ zählt nicht als Beleg
+  const recent = obs.filter((o) => o.date >= d60 && !o.seenOnly)
+  const group = isGroup(cls)
   const inArea = (o: Observation, area: string) => (area === 'Sozialverhalten' ? o.kind === 'sozialverhalten' : area === 'Arbeitsverhalten' ? o.kind === 'arbeitsverhalten' : o.subject === area)
   const count = (sid: string, area: string) => recent.filter((o) => o.studentIds.includes(sid) && inArea(o, area)).length
 
@@ -53,7 +70,7 @@ export default function Klassenblick() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8">
       <PageHeader
-        eyebrow={cls.name}
+        eyebrow={group ? `${cls.name} · Gruppe` : cls.name}
         title="Klassenblick"
         subtitle={view === 'kompetenzen' ? 'Letzte Einschätzung je Kind und Kompetenz.' : view === 'abdeckung' ? 'Wie viele Beobachtungen gibt es je Bereich (letzte 60 Tage)?' : 'Rückblick auf die eigenen Stunden.'}
         actions={
@@ -115,9 +132,10 @@ export default function Klassenblick() {
                       </p>
                       <p className="flex items-center gap-1.5 text-xs text-slate-500">
                         <span className={clsx('size-2.5 rounded-sm', LEVEL_BG[selObs?.level ?? 0])} />
-                        {selObs?.level ? `${LEVEL_LABEL[selObs.level]} · eingeschätzt am ${shortDate(selObs.date)}` : 'noch nicht eingeschätzt'}
+                        {selObs?.level ? `${LEVEL_LABEL[selObs.level]} · eingeschätzt am ${shortDate(selObs.date)}` : 'kein Beleg'}
                         {selObs?.text ? ` · „${selObs.text}“` : ''}
                       </p>
+                      {selObs?.level && <p className="truncate text-xs text-slate-400 italic">Indikator: {indicator(selComp, selObs.level)}</p>}
                     </div>
                     <Link to={`/kinder/${selStudent.id}`} className="shrink-0 rounded-lg px-2.5 py-2 text-xs font-medium text-brand-700 hover:bg-brand-50">
                       Zur Akte
@@ -159,6 +177,7 @@ export default function Klassenblick() {
                         <td className={clsx('sticky left-0 z-10 border-t border-slate-100 bg-white py-1 pr-3 pl-3', cell?.sid === s.id && 'bg-brand-50')}>
                           <Link to={`/kinder/${s.id}`} className="flex items-center gap-2 font-medium whitespace-nowrap text-slate-800 hover:text-brand-700">
                             <Avatar student={s} size={26} /> {s.firstName}
+                            {group && <HomeTag c={classById.get(s.classId)} />}
                           </Link>
                         </td>
                         {ratedComps.map((c) => {
@@ -171,8 +190,8 @@ export default function Klassenblick() {
                                 type="button"
                                 onClick={() => setCell({ sid: s.id, cid: c.id })}
                                 onMouseEnter={() => setCell({ sid: s.id, cid: c.id })}
-                                title={`${s.firstName}: ${o?.level ? `${LEVEL_LABEL[o.level]} (${shortDate(o.date)})` : 'nicht eingeschätzt'}`}
-                                aria-label={`${s.firstName}, ${c.text}: ${o?.level ? LEVEL_LABEL[o.level] : 'nicht eingeschätzt'}`}
+                                title={`${s.firstName}: ${o?.level ? `${LEVEL_LABEL[o.level]} (${shortDate(o.date)}) – ${indicator(c, o.level)}` : 'kein Beleg'}`}
+                                aria-label={`${s.firstName}, ${c.text}: ${o?.level ? LEVEL_LABEL[o.level] : 'kein Beleg'}`}
                                 className={clsx(
                                   'mx-auto flex h-10 items-center justify-center rounded-lg text-[11px] font-semibold transition',
                                   wide ? 'w-full' : 'w-10',
@@ -220,7 +239,7 @@ export default function Klassenblick() {
                   </span>
                 ))}
                 <span className="flex items-center gap-1.5">
-                  <span className={clsx('flex size-5 items-center justify-center rounded text-[10px] font-semibold', LEVEL_BG[0], LEVEL_TEXT[0])}>–</span> nicht eingeschätzt
+                  <span className={clsx('flex size-5 items-center justify-center rounded text-[10px] font-semibold', LEVEL_BG[0], LEVEL_TEXT[0])}>–</span> kein Beleg (nicht „schwach“)
                 </span>
                 <span className="ml-auto flex items-center gap-1">
                   <Sparkles size={12} className="text-violet-500" /> Förderideen per KI
@@ -274,19 +293,20 @@ export default function Klassenblick() {
                         <td className="sticky left-0 z-10 border-t border-slate-100 bg-white px-3 py-1">
                           <Link to={`/kinder/${s.id}`} className="flex items-center gap-2 font-medium whitespace-nowrap text-slate-800 hover:text-brand-700">
                             <Avatar student={s} size={26} /> {s.firstName}
-                            {gaps > 0 && <span className="text-[11px] font-normal text-rose-500 tabular-nums">{gaps} Lücke{gaps > 1 ? 'n' : ''}</span>}
+                            {group && <HomeTag c={classById.get(s.classId)} />}
+                            {gaps > 0 && <span className="text-[11px] font-normal text-slate-400 tabular-nums">{gaps}× kein Beleg</span>}
                           </Link>
                         </td>
                         {ns.map((n, i) => (
                           <td key={areas[i]} className="border-t border-slate-100 p-1 text-center">
                             <span
-                              title={`${s.firstName} · ${areas[i]}: ${n} Beobachtung${n === 1 ? '' : 'en'}`}
+                              title={`${s.firstName} · ${areas[i]}: ${n ? `${n} Beobachtung${n === 1 ? '' : 'en'}` : 'kein Beleg'}`}
                               className={clsx(
                                 'inline-flex size-10 items-center justify-center rounded-lg text-xs font-semibold tabular-nums',
-                                n === 0 ? 'bg-rose-50 text-rose-400 ring-1 ring-rose-100 ring-inset' : n < 3 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800',
+                                n === 0 ? 'bg-slate-50 text-[10px] font-medium text-slate-400 ring-1 ring-slate-200 ring-inset' : n < 3 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800',
                               )}
                             >
-                              {n}
+                              {n || '–'}
                             </span>
                           </td>
                         ))}
@@ -295,11 +315,11 @@ export default function Klassenblick() {
                     )
                   })}
                   <tr>
-                    <td className="sticky left-0 z-10 border-t-2 border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">ohne Beobachtung</td>
+                    <td className="sticky left-0 z-10 border-t-2 border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">ohne Beleg</td>
                     {areas.map((a) => {
                       const missing = students.filter((s) => count(s.id, a) === 0).length
                       return (
-                        <td key={a} className={clsx('border-t-2 border-slate-200 py-2 text-center text-xs font-semibold tabular-nums', missing ? 'text-rose-600' : 'text-emerald-600')}>
+                        <td key={a} className={clsx('border-t-2 border-slate-200 py-2 text-center text-xs font-semibold tabular-nums', missing ? 'text-slate-600' : 'text-emerald-600')}>
                           {missing || '✓'}
                         </td>
                       )
@@ -311,7 +331,7 @@ export default function Klassenblick() {
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-1.5">
-                <span className="size-3.5 rounded bg-rose-50 ring-1 ring-rose-200 ring-inset" /> keine
+                <span className="size-3.5 rounded bg-slate-50 ring-1 ring-slate-200 ring-inset" /> kein Beleg
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="size-3.5 rounded bg-amber-100" /> 1–2
@@ -319,7 +339,7 @@ export default function Klassenblick() {
               <span className="flex items-center gap-1.5">
                 <span className="size-3.5 rounded bg-emerald-100" /> 3 und mehr
               </span>
-              <span className="ml-auto">letzte 60 Tage</span>
+              <span className="ml-auto">letzte 60 Tage · ohne „gesehen“</span>
             </div>
           </div>
         ) : (

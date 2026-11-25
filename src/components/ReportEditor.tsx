@@ -261,7 +261,7 @@ export function ReportEditor({ student, cls, obs, comps, term, du }: { student: 
         <ol className="space-y-2">
           {draft.sentences.map((s, i) => (
             <SentenceRow
-              key={i}
+              key={`${draft.createdAt}-${i}`}
               s={s}
               evidence={s.evidence.map((id) => obsById.get(id)).filter((o): o is Observation => !!o)}
               comps={comps}
