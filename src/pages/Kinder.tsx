@@ -9,10 +9,16 @@ import {
   ClipboardCheck,
   Eye,
   FileText,
+  Anchor,
+  ArrowRight,
   Flag,
+  GraduationCap,
   HeartHandshake,
   History,
+  Inbox,
+  Lightbulb,
   MessagesSquare,
+  MoreHorizontal,
   Plus,
   Search,
   ShieldCheck,
@@ -20,20 +26,22 @@ import {
   UserRound,
   UserX,
   Users,
+  UsersRound,
 } from 'lucide-react'
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AiButton, AskSheet } from '../components/AiSheets'
 import { AttachmentView } from '../components/media'
 import { QuickCapture, type CaptureContext } from '../components/QuickCapture'
-import { ReportEditor, TERMS } from '../components/ReportEditor'
+import { artFor, defaultTerm, ReportEditor, termProfiles } from '../components/ReportEditor'
+import { ClassDot } from '../components/ClassSwitcher'
 import { toast } from '../components/toast'
 import { Avatar, Badge, Button, Card, CoverageRing, Empty, Field, inputCls, PageHeader, Segmented, ValenceDot } from '../components/ui'
 import { studentContext } from '../lib/ai'
-import { alive, aliveOne, db, now, save, uid, type Competency, type Goal, type Observation, type ObsKind, type SchoolClass, type Student, type Support, type Valence } from '../lib/db'
-import { useActiveClass, useClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
-import { agoText, studentStats, today } from '../lib/insights'
-import { KIND_LABEL, LEVEL_LABEL } from '../lib/seed'
+import { alive, aliveOne, db, isGroup, now, save, uid, type Competency, type Goal, type Observation, type ObsKind, type SchoolClass, type Student, type Support, type Valence } from '../lib/db'
+import { useActiveClass, useClass, useCompetencies, useObservations, useStudentObservations, useStudents } from '../lib/hooks'
+import { agoText, balanceIssues, studentStats, today } from '../lib/insights'
+import { BEHAVIOR_ITEMS, FREQUENCY_LABEL, KIND_LABEL, LEVEL_LABEL } from '../lib/seed'
 
 export default function Kinder() {
   const { id } = useParams()
@@ -57,6 +65,8 @@ function KinderListe() {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>('name')
   const stats = useMemo(() => studentStats(students, obs), [students, obs])
+  const group = isGroup(cls)
+  const classById = useClassMap()
   const needle = q.trim().toLowerCase()
   const shown = stats
     .filter((s) => `${s.student.firstName} ${s.student.lastName}`.toLowerCase().includes(needle))
@@ -115,7 +125,14 @@ function KinderListe() {
                 )}
                 <SupportBadges s={s.student} />
               </div>
-              <p className="truncate text-xs text-slate-400">{agoText(s.days)}</p>
+              <p className="flex min-w-0 items-center gap-1.5 text-xs text-slate-400">
+                {group && classById.get(s.student.classId) && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
+                    <ClassDot c={classById.get(s.student.classId)} className="!size-2" /> {classById.get(s.student.classId)!.name}
+                  </span>
+                )}
+                <span className="truncate">{agoText(s.days)}</span>
+              </p>
             </div>
           </Link>
         ))}
@@ -124,9 +141,9 @@ function KinderListe() {
       {!students.length && (
         <Card>
           <Empty icon={Users}>
-            Noch keine Kinder in {cls?.name ?? 'dieser Klasse'}.{' '}
+            {group ? `Die Gruppe ${cls?.name} hat noch keine Mitglieder.` : `Noch keine Kinder in ${cls?.name ?? 'dieser Klasse'}.`}{' '}
             <Link to="/einstellungen" className="font-medium text-brand-700 hover:underline">
-              Unter Einstellungen anlegen
+              {group ? 'Unter Einstellungen Kinder zuordnen' : 'Unter Einstellungen anlegen'}
             </Link>
           </Empty>
         </Card>
@@ -134,6 +151,16 @@ function KinderListe() {
       {!!students.length && !shown.length && <Empty icon={Search}>Kein Kind passt zu „{q}“.</Empty>}
     </div>
   )
+}
+
+/** Alle Klassen/Gruppen (auch archivierte) nach ID – für Stammklasse und Herkunft von Einträgen. */
+function useClassMap() {
+  return useLiveQuery(async () => new Map(alive(await db.classes.toArray()).map((c) => [c.id, c])), []) ?? new Map<string, SchoolClass>()
+}
+
+/** Alle Kompetenzen (beide Doppeljahrgangsstufen) – für Einträge aus früheren Schuljahren. */
+function useAllCompetencies() {
+  return useLiveQuery(async () => alive(await db.competencies.toArray()), []) ?? []
 }
 
 export function SupportBadges({ s }: { s: Student }) {
@@ -160,8 +187,11 @@ function Akte({ id }: { id: string }) {
   const student = useLiveQuery(async () => aliveOne(await db.students.get(id)) ?? null, [id])
   const cls = useClass(student?.classId)
   const students = useStudents(student?.classId)
-  const allObs = useObservations(student?.classId)
+  // Alle Einträge des Kindes – über Klassen, Gruppen und Schuljahre hinweg
+  const obs = useStudentObservations(student ? id : undefined)
   const comps = useCompetencies(cls)
+  const allComps = useAllCompetencies()
+  const classById = useClassMap()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('verlauf')
   const [capture, setCapture] = useState<CaptureContext | null>(null)
@@ -191,8 +221,12 @@ function Akte({ id }: { id: string }) {
     )
   if (!student || !cls) return null
 
-  const obs = allObs.filter((o) => o.studentIds.includes(id))
-  const stats = studentStats([student], allObs)[0]
+  const stats = studentStats([student], obs)[0]
+  const balance = balanceIssues([student], obs, cls.subjects).map((b) => b.text.replace(`${student.firstName}: `, ''))
+  const history = [...(student.history ?? [])].sort((a, b) => b.schoolYear.localeCompare(a.schoolYear))
+  // Kompetenzen des aktuellen Rasters + solche, die in älteren Einträgen vorkommen
+  const usedIds = new Set(obs.map((o) => o.competencyId).filter(Boolean))
+  const profileComps = [...comps, ...allComps.filter((c) => usedIds.has(c.id) && !comps.some((x) => x.id === c.id))]
   const openGoals = goals.filter((g) => g.status !== 'erreicht' && g.status !== 'verworfen').length
   const ctx = (edit?: Observation): CaptureContext => ({ classId: cls.id, gradeLevel: cls.gradeLevel, students, competencies: comps, studentIds: [id], edit })
 
@@ -207,8 +241,8 @@ function Akte({ id }: { id: string }) {
             <Avatar student={student} size={76} />
           </CoverageRing>
           <div className="min-w-0 flex-1 space-y-1.5">
-            <p className="text-[13px] font-medium text-slate-500">
-              {cls.name} · {cls.schoolYear}
+            <p className="flex items-center gap-1.5 text-[13px] font-medium text-slate-500">
+              <ClassDot c={cls} /> {cls.name} · {cls.schoolYear}
             </p>
             <h1 className="text-[26px] leading-tight font-semibold tracking-tight text-slate-900 md:text-[28px]">
               {student.firstName} {student.lastName}
@@ -227,6 +261,29 @@ function Akte({ id }: { id: string }) {
             </div>
           </div>
         </div>
+        {history.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="mr-1 inline-flex items-center gap-1 font-medium text-slate-500">
+              <GraduationCap size={14} /> Frühere Klassen
+            </span>
+            {history.map((h) => (
+              <span key={`${h.classId}-${h.schoolYear}`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 font-medium text-slate-700">
+                <ClassDot c={classById.get(h.classId) ?? { id: h.classId } as SchoolClass} className="!size-2" />
+                {h.className}
+                <span className="font-normal text-slate-400 tabular-nums">{h.schoolYear}</span>
+              </span>
+            ))}
+          </div>
+        )}
+        {balance.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Hinweise zur Ausgewogenheit">
+            {balance.map((t) => (
+              <span key={t} className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-100">
+                <Lightbulb size={13} /> {t}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           <Button onClick={() => setCapture(ctx())}>
             <Plus size={16} /> Beobachtung
@@ -253,11 +310,13 @@ function Akte({ id }: { id: string }) {
         ]}
       />
 
-      {tab === 'verlauf' && <Timeline obs={obs} comps={comps} onEdit={(o) => setCapture(ctx(o))} onAdd={() => setCapture(ctx())} />}
-      {tab === 'kompetenzen' && <CompetencyProfile obs={obs} comps={comps} />}
+      {tab === 'verlauf' && (
+        <Timeline obs={obs} comps={allComps.length ? allComps : comps} classById={classById} homeClassId={student.classId} onEdit={(o) => setCapture(ctx(o))} onAdd={() => setCapture(ctx())} />
+      )}
+      {tab === 'kompetenzen' && <CompetencyProfile obs={obs.filter((o) => !o.seenOnly)} comps={profileComps} />}
       {tab === 'verhalten' && <Behaviour obs={obs} />}
       {tab === 'ziele' && <Goals student={student} comps={comps} />}
-      {tab === 'zeugnis' && <ZeugnisTab student={student} cls={cls} obs={allObs} comps={comps} />}
+      {tab === 'zeugnis' && <ZeugnisTab student={student} cls={cls} obs={obs} comps={allComps.length ? allComps : comps} />}
       {tab === 'profil' && <Profile key={student.id} student={student} />}
 
       <AskSheet
@@ -265,7 +324,7 @@ function Akte({ id }: { id: string }) {
         onClose={() => setAsking(false)}
         title={`Frage zu ${student.firstName}`}
         placeholder={`Wie hat sich ${student.firstName} in Mathe seit September entwickelt?`}
-        data={() => studentContext(student, cls, allObs, comps, goals)}
+        data={() => studentContext(student, cls, obs.filter((o) => !o.seenOnly), allComps.length ? allComps : comps, goals)}
       />
       <QuickCapture ctx={capture} onClose={() => setCapture(null)} />
     </div>
@@ -282,13 +341,43 @@ const VALENCE: Record<Valence, { label: string; tone: 'green' | 'slate' | 'rose'
 
 const selectCls = clsx(inputCls, '!w-auto py-2 pr-8 text-sm')
 
-export function Timeline({ obs, comps, onEdit, onAdd }: { obs: Observation[]; comps: Competency[]; onEdit?: (o: Observation) => void; onAdd?: () => void }) {
+/** Markiert/entfernt eine Beobachtung als Ankerbeispiel ihrer Kompetenz auf der eingeschätzten Stufe. */
+async function toggleAnchor(o: Observation) {
+  if (!o.competencyId || !o.level) return
+  const cur = aliveOne(await db.competencies.get(o.competencyId))
+  if (!cur) return toast('Kompetenz nicht mehr vorhanden')
+  const anchors = { ...(cur.anchors ?? {}) }
+  const list = anchors[o.level] ?? []
+  const on = list.includes(o.id)
+  anchors[o.level] = on ? list.filter((x) => x !== o.id) : [...list, o.id]
+  await save(db.competencies, { ...cur, anchors })
+  toast(on ? 'Ankerbeispiel entfernt' : `Als Ankerbeispiel für „${LEVEL_LABEL[o.level]}“ markiert`)
+}
+
+export function Timeline({
+  obs,
+  comps,
+  onEdit,
+  onAdd,
+  classById,
+  homeClassId,
+}: {
+  obs: Observation[]
+  comps: Competency[]
+  onEdit?: (o: Observation) => void
+  onAdd?: () => void
+  classById?: Map<string, SchoolClass>
+  homeClassId?: string
+}) {
   const [kind, setKind] = useState<'alle' | ObsKind>('alle')
   const [subject, setSubject] = useState('alle')
+  const [showSeen, setShowSeen] = useState(false)
+  const [menu, setMenu] = useState<string | null>(null)
   const subjects = [...new Set(obs.map((o) => o.subject).filter(Boolean))] as string[]
   const kinds = [...new Set(obs.map((o) => o.kind))]
+  const seenCount = obs.filter((o) => o.seenOnly).length
   const shown = obs
-    .filter((o) => (kind === 'alle' || o.kind === kind) && (subject === 'alle' || o.subject === subject))
+    .filter((o) => (showSeen || !o.seenOnly) && (kind === 'alle' || o.kind === kind) && (subject === 'alle' || o.subject === subject))
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
   const byMonth = shown.reduce<Record<string, Observation[]>>((acc, o) => ((acc[o.date.slice(0, 7)] ??= []).push(o), acc), {})
   const compById = useMemo(() => new Map(comps.map((c) => [c.id, c])), [comps])
@@ -309,7 +398,7 @@ export function Timeline({ obs, comps, onEdit, onAdd }: { obs: Observation[]; co
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <select value={kind} onChange={(e) => setKind(e.target.value as ObsKind)} className={selectCls} aria-label="Art">
           <option value="alle">Alle Arten</option>
           {kinds.map((k) => (
@@ -326,6 +415,12 @@ export function Timeline({ obs, comps, onEdit, onAdd }: { obs: Observation[]; co
             ))}
           </select>
         )}
+        {seenCount > 0 && (
+          <label className="flex min-h-10 items-center gap-2 px-1 text-sm text-slate-600">
+            <input type="checkbox" checked={showSeen} onChange={(e) => setShowSeen(e.target.checked)} className="size-5 accent-brand-600" />
+            auch „gesehen“ anzeigen <span className="text-slate-400 tabular-nums">({seenCount})</span>
+          </label>
+        )}
       </div>
 
       {Object.entries(byMonth).map(([month, list]) => (
@@ -337,6 +432,21 @@ export function Timeline({ obs, comps, onEdit, onAdd }: { obs: Observation[]; co
             {list.map((o) => {
               const comp = o.competencyId ? compById.get(o.competencyId) : undefined
               const open = () => onEdit?.(o)
+              const origin = homeClassId && o.classId !== homeClassId ? classById?.get(o.classId) : undefined
+              const scaleItem = o.scaleItemId ? BEHAVIOR_ITEMS.find((b) => b.id === o.scaleItemId) : undefined
+              const isAnchor = !!(comp && o.level && comp.anchors?.[o.level]?.includes(o.id))
+              const canAnchor = !!(comp && o.level)
+              if (o.seenOnly)
+                return (
+                  <li key={o.id} className="relative">
+                    <span className="absolute top-2.5 -left-6 flex size-4 items-center justify-center rounded-full bg-white">
+                      <span className="size-2 rounded-full bg-slate-300" />
+                    </span>
+                    <p className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs text-slate-400 ring-1 ring-slate-100">
+                      <Eye size={13} /> {format(parseISO(o.date), 'EEE, d. MMM', { locale: de })} · gesehen, unauffällig{o.subject ? ` · ${o.subject}` : ''}
+                    </p>
+                  </li>
+                )
               return (
                 <li key={o.id} className="relative">
                   <span className="absolute top-5 -left-6 flex size-4 items-center justify-center rounded-full bg-white ring-2 ring-white">
@@ -348,29 +458,99 @@ export function Timeline({ obs, comps, onEdit, onAdd }: { obs: Observation[]; co
                     onClick={open}
                     onKeyDown={(e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget && (e.preventDefault(), open())}
                     className={clsx(
-                      'rounded-2xl bg-white p-4 shadow-[var(--shadow-card)] ring-1 ring-slate-200/80 transition',
+                      'relative rounded-2xl bg-white p-4 shadow-[var(--shadow-card)] ring-1 ring-slate-200/80 transition',
                       onEdit && 'cursor-pointer hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none',
+                      o.unsorted && '!ring-amber-200',
                     )}
                   >
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                    <div className="flex flex-wrap items-center gap-1.5 pr-9 text-xs text-slate-500">
                       <span className="font-medium text-slate-700">{format(parseISO(o.date), 'EEEE, d. MMM', { locale: de })}</span>
+                      {o.unsorted && (
+                        <Badge tone="amber">
+                          <Inbox size={11} /> unsortiert
+                        </Badge>
+                      )}
                       <Badge tone="brand">{KIND_LABEL[o.kind] ?? o.kind}</Badge>
                       <Badge tone={VALENCE[o.valence].tone}>{VALENCE[o.valence].label}</Badge>
                       {o.subject && <Badge tone="sky">{o.subject}</Badge>}
+                      {o.groupWork && (
+                        <Badge tone="slate">
+                          <UsersRound size={11} /> Gruppenarbeit · nicht notenrelevant
+                        </Badge>
+                      )}
+                      {origin && (
+                        <Badge tone="slate">
+                          <ClassDot c={origin} className="!size-2" /> {origin.name}
+                        </Badge>
+                      )}
+                      {isAnchor && (
+                        <Badge tone="violet">
+                          <Anchor size={11} /> Ankerbeispiel
+                        </Badge>
+                      )}
                       {o.shareable && (
                         <Badge tone="slate">
                           <Eye size={11} /> zeigbar
                         </Badge>
                       )}
                     </div>
+                    {canAnchor && (
+                      <div className="absolute top-2.5 right-2.5" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setMenu(menu === o.id ? null : o.id)}
+                          aria-label="Weitere Aktionen"
+                          aria-expanded={menu === o.id}
+                          className="flex size-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <MoreHorizontal size={18} />
+                        </button>
+                        {menu === o.id && (
+                          <>
+                            <button type="button" aria-label="Menü schließen" className="fixed inset-0 z-30 cursor-default" onClick={() => setMenu(null)} />
+                            <div className="absolute top-10 right-0 z-40 w-72 rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-slate-200">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMenu(null)
+                                  toggleAnchor(o).catch((e) => toast((e as Error).message))
+                                }}
+                                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                              >
+                                <Anchor size={15} className="shrink-0 text-violet-600" />
+                                {isAnchor ? `Ankerbeispiel für Stufe ${o.level} entfernen` : `Als Ankerbeispiel für Stufe ${o.level} markieren`}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                     {o.competencyId && (
                       <p className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
                         {comp ? comp.text : <span className="font-normal text-slate-400 italic">Kompetenz nicht mehr vorhanden</span>}
                         {o.level && <LevelChip level={o.level} />}
                       </p>
                     )}
+                    {scaleItem && o.frequency && (
+                      <p className="mt-2 text-sm text-slate-800">
+                        {scaleItem.text}: <span className="font-semibold">{FREQUENCY_LABEL[o.frequency]}</span>
+                      </p>
+                    )}
                     {o.text && <p className={clsx('mt-1.5 text-[15px] leading-relaxed whitespace-pre-wrap text-slate-700', o.kind === 'zitat' && 'italic')}>{o.text}</p>}
-                    {!o.text && !o.competencyId && !o.attachments.length && <p className="mt-1.5 text-sm text-slate-400 italic">Ohne Text</p>}
+                    {!o.text && !o.competencyId && !scaleItem && !o.attachments.length && <p className="mt-1.5 text-sm text-slate-400 italic">Ohne Text</p>}
+                    {o.interpretation && (
+                      <p className="mt-2 border-l-2 border-slate-200 pl-3 text-sm text-slate-500 italic">
+                        <span className="font-medium not-italic">Deutung:</span> {o.interpretation}
+                      </p>
+                    )}
+                    {o.nextStep && (
+                      <p className="mt-2 flex items-start gap-1.5 text-sm text-brand-800">
+                        <ArrowRight size={15} className="mt-0.5 shrink-0" />
+                        <span>
+                          <span className="font-medium">Nächster Schritt:</span> {o.nextStep}
+                        </span>
+                      </p>
+                    )}
                     {o.attachments.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
                         {o.attachments.map((a) => (
@@ -408,7 +588,7 @@ function LevelChip({ level, wide }: { level?: number; wide?: boolean }) {
 }
 
 /** Kleine Verlaufslinie für Stufen 1–4. */
-function Spark({ points }: { points: { date: string; level: number }[] }) {
+function Spark({ points, labels = LEVEL_LABEL }: { points: { date: string; level: number }[]; labels?: readonly string[] }) {
   const w = 120
   const h = 32
   if (!points.length) return <span className="inline-block w-[120px] text-center text-xs text-slate-300">–</span>
@@ -424,7 +604,7 @@ function Spark({ points }: { points: { date: string; level: number }[] }) {
       {xs.map((x, i) => (
         <circle key={i} cx={x} cy={ys[i]} r={i === xs.length - 1 ? 3.5 : 2.5} fill="currentColor">
           <title>
-            {format(parseISO(points[i].date), 'd.M.yy')}: {LEVEL_LABEL[points[i].level]}
+            {format(parseISO(points[i].date), 'd.M.yy')}: {labels[points[i].level]}
           </title>
         </circle>
       ))}
@@ -502,15 +682,41 @@ function CompetencyProfile({ obs, comps }: { obs: Observation[]; comps: Competen
 
 /* ------------------------------------------------------------------ Verhalten */
 
-function Behaviour({ obs }: { obs: Observation[] }) {
+function Behaviour({ obs: all }: { obs: Observation[] }) {
+  const obs = all.filter((o) => !o.seenOnly)
   const weeks = Array.from({ length: 12 }, (_, i) => startOfWeek(subWeeks(new Date(), 11 - i), { weekStartsOn: 1 }))
   const rows: { kind: ObsKind; label: string; icon: typeof HeartHandshake }[] = [
     { kind: 'sozialverhalten', label: 'Sozialverhalten', icon: HeartHandshake },
     { kind: 'arbeitsverhalten', label: 'Lern- & Arbeitsverhalten', icon: ClipboardCheck },
   ]
   const since = formatISO(weeks[0], { representation: 'date' })
+  const scaled = obs.filter((o) => o.scaleItemId && o.frequency).sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
+  const scaleRows = BEHAVIOR_ITEMS.map((item) => ({ item, pts: scaled.filter((o) => o.scaleItemId === item.id).map((o) => ({ date: o.date, level: o.frequency! })) })).filter((r) => r.pts.length)
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      {scaleRows.length > 0 && (
+        <Card title="Verhaltensskala" icon={ClipboardCheck} className="lg:col-span-2" action={<span className="text-xs text-slate-400">nie · selten · oft · immer</span>}>
+          <ul className="-my-2 divide-y divide-slate-100">
+            {scaleRows.map(({ item, pts }) => {
+              const last = pts[pts.length - 1]
+              return (
+                <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+                  <div className="min-w-0 flex-1 basis-56">
+                    <p className="text-sm text-slate-800">{item.text}</p>
+                    <p className="text-xs text-slate-400">
+                      {item.area === 'sozialverhalten' ? 'Sozialverhalten' : 'Arbeitsverhalten'} · {pts.length}× eingeschätzt · zuletzt {format(parseISO(last.date), 'd.M.yy')}
+                    </p>
+                  </div>
+                  <Spark points={pts} labels={FREQUENCY_LABEL} />
+                  <span className={clsx('inline-flex w-24 items-center justify-center rounded-lg py-1 text-xs font-semibold ring-1 ring-transparent ring-inset', LEVEL_TONE[last.level])}>
+                    {FREQUENCY_LABEL[last.level]}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </Card>
+      )}
       {rows.map(({ kind, label, icon }) => {
         const list = obs.filter((o) => o.kind === kind).sort((a, b) => b.date.localeCompare(a.date))
         const data = weeks.map((w, i) => {
@@ -794,11 +1000,12 @@ function Profile({ student }: { student: Student }) {
 /* ------------------------------------------------------------------ Zeugnis */
 
 function ZeugnisTab({ student, cls, obs, comps }: { student: Student; cls: SchoolClass; obs: Observation[]; comps: Competency[] }) {
-  const [term, setTerm] = useState<string>(cls.gradeLevel === 4 ? 'Übertrittszeugnis' : 'Jahreszeugnis')
+  const [term, setTerm] = useState<string>(defaultTerm(cls.gradeLevel))
   const [du, setDu] = useState(cls.gradeLevel <= 2)
+  const art = artFor(cls.gradeLevel, term)
   return (
     <Card
-      title={`Zeugnistext · ${cls.gradeLevel <= 2 ? 'Wortgutachten' : 'Bemerkungen'}`}
+      title={`Zeugnistext · ${art}`}
       icon={FileText}
       action={
         <Link to="/zeugnis" className="text-sm font-medium text-brand-700 hover:underline">
@@ -807,7 +1014,8 @@ function ZeugnisTab({ student, cls, obs, comps }: { student: Student; cls: Schoo
       }
     >
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Segmented size="sm" value={term} onChange={setTerm} options={TERMS.map((t) => ({ value: t, label: t }))} />
+        <Segmented size="sm" value={term} onChange={setTerm} options={termProfiles(cls.gradeLevel).map((p) => ({ value: p.term, label: p.term }))} />
+        <Badge tone={art === 'Wortgutachten' ? 'violet' : 'sky'}>{art}</Badge>
         <label className="flex min-h-10 items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={du} onChange={(e) => setDu(e.target.checked)} className="size-5 accent-brand-600" /> Mit „Du“ ansprechen
         </label>

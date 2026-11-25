@@ -15,6 +15,7 @@ import {
   Play,
   Plus,
   Radar,
+  Scale,
   Sparkles,
   Target,
   TrendingUp,
@@ -27,10 +28,13 @@ import { latestRunning, StartLessonSheet, subjectDot } from '../components/Lesso
 import { ai, classContext } from '../lib/ai'
 import { QuickCapture, type CaptureContext } from '../components/QuickCapture'
 import { Avatar, Badge, Button, Card, CoverageRing, Empty, PageHeader, Stat, ValenceDot } from '../components/ui'
-import { alive, db } from '../lib/db'
-import { useActiveClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
-import { agoText, daysAgo, focusChildren, signals, studentStats, today } from '../lib/insights'
-import { KIND_LABEL } from '../lib/seed'
+import { ClassDot } from '../components/ClassSwitcher'
+import { classColor } from '../lib/colors'
+import { alive, db, isGroup, type Competency, type Goal, type Lesson, type Observation, type SchoolClass, type Student } from '../lib/db'
+import { todaysSlots, useActiveClass, useClasses, useCompetencies, useNow, useObservations, usePeriods, useStudents, useTimetable, type SlotNow } from '../lib/hooks'
+import { agoText, daysAgo, focusRotation, signals, studentStats, today, type Signal } from '../lib/insights'
+import { bandFor, KIND_LABEL, SUBJECTS_BY_GRADE } from '../lib/seed'
+import { Segmented } from '../components/ui'
 
 function useMinuteTick() {
   const [, tick] = useState(0)
@@ -38,6 +42,38 @@ function useMinuteTick() {
     const t = setInterval(() => tick((x) => x + 1), 30_000)
     return () => clearInterval(t)
   }, [])
+}
+
+type Scope = 'klasse' | 'alle'
+const SCOPE_KEY = 'cockpit.scope'
+function readScope(): Scope {
+  try {
+    return localStorage.getItem(SCOPE_KEY) === 'alle' ? 'alle' : 'klasse'
+  } catch {
+    return 'klasse'
+  }
+}
+
+/** Daten je Klasse/Gruppe für die Ansicht „Alle Klassen“. */
+interface ClassData {
+  cls: SchoolClass
+  students: Student[]
+  obs: Observation[]
+  goals: Goal[]
+  comps: Competency[]
+}
+
+const ctxName = (c?: SchoolClass) => (!c ? '' : isGroup(c) ? c.name : `Klasse ${c.name}`)
+const subjectsOf = (c: SchoolClass) => (c.subjects.length ? c.subjects : SUBJECTS_BY_GRADE[c.gradeLevel])
+
+function ClassTag({ c }: { c?: SchoolClass }) {
+  if (!c) return null
+  return (
+    <span className={clsx('inline-flex max-w-[10rem] shrink-0 items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium', classColor(c).soft)}>
+      <ClassDot c={c} className="size-1.5" />
+      <span className="truncate">{isGroup(c) ? c.name : c.name}</span>
+    </span>
+  )
 }
 
 export default function Cockpit() {
