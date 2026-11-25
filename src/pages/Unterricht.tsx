@@ -4,6 +4,7 @@ import { de } from 'date-fns/locale'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   BookOpen,
+  Camera,
   Check,
   ChevronLeft,
   Clock,
@@ -12,27 +13,33 @@ import {
   Grid3x3,
   ImageIcon,
   LayoutGrid,
+  Inbox,
   ListChecks,
   MessageSquareText,
+  Mic,
   Pencil,
+  PenLine,
   Play,
   SearchX,
+  Shuffle,
+  Sparkles,
   Square,
   Target,
   Users,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AiButton, DictationSheet } from '../components/AiSheets'
 import { RATING_DOT, RATING_LABEL, ReflectionSheet, StartLessonSheet, subjectDot } from '../components/LessonSheets'
 import { QuickCapture, quickSave, type CaptureContext } from '../components/QuickCapture'
-import { AttachmentView } from '../components/media'
+import { ClassDot, contextLabel } from '../components/ClassSwitcher'
+import { AttachmentView, SketchPad, VoiceRecorder, compressImage } from '../components/media'
 import { toast } from '../components/toast'
-import { Avatar, Badge, Button, Card, Empty, PageHeader, Segmented, ValenceDot } from '../components/ui'
-import { alive, aliveOne, db, remove, save, type Competency, type Lesson, type Observation, type SchoolClass, type Student } from '../lib/db'
+import { Avatar, Badge, Button, Card, Empty, PageHeader, Segmented, Sheet, ValenceDot } from '../components/ui'
+import { alive, aliveOne, db, remove, save, uid, isGroup, type Attachment, type Competency, type Lesson, type Observation, type SchoolClass, type Student } from '../lib/db'
 import { useActiveClass, useCompetencies, useObservations, useStudents } from '../lib/hooks'
-import { latestLevels } from '../lib/insights'
+import { focusRotation, latestLevels } from '../lib/insights'
 import { KIND_LABEL, LEVEL_LABEL } from '../lib/seed'
 
 export default function Unterricht() {
@@ -88,7 +95,7 @@ function LessonList() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 md:px-8 md:py-8">
       <PageHeader
-        eyebrow={`Klasse ${cls.name}`}
+        eyebrow={contextLabel(cls)}
         title="Unterrichtstagebuch"
         subtitle={lessons.length ? `${lessons.length} Stunde${lessons.length === 1 ? '' : 'n'} dokumentiert` : undefined}
         actions={
@@ -218,6 +225,110 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
   const visible = hasFocus ? students.filter(isFocus) : students
   const ordered = hasFocus ? [...students].sort((a, b) => Number(isFocus(b)) - Number(isFocus(a))) : students
   const seenKids = new Set(inLesson.flatMap((o) => o.studentIds))
+  const unsorted = inLesson.filter((o) => o.unsorted).length
+  const [menu, setMenu] = useState<{ student: Student; rect: DOMRect } | null>(null)
+  const [sketchFor, setSketchFor] = useState<Student | null>(null)
+
+  /* Fokus heute: einmal beim Öffnen der Stunde berechnen, danach stabil (kein Umsortieren beim Erfassen). */
+  const pool = visible
+  const poolKey = pool.map((s) => s.id).join(',')
+  const rotationData = useLiveQuery(async () => {
+    const ids = poolKey ? poolKey.split(',') : []
+    if (!ids.length) return null
+    const [goals, rows] = await Promise.all([db.goals.where('studentId').anyOf(ids).toArray(), db.observations.where('studentIds').anyOf(ids).distinct().toArray()])
+    return { goals: alive(goals), obs: alive(rows) }
+  }, [poolKey])
+  const [focusIds, setFocusIds] = useState<string[] | null>(null)
+  useEffect(() => {
+    if (focusIds || !rotationData || !pool.length) return
+    setFocusIds(focusRotation(pool, rotationData.obs, rotationData.goals, lesson.focusCompetencyIds, 5).map((s) => s.id))
+  }, [focusIds, rotationData, pool, lesson.focusCompetencyIds])
+  const focusKids = (focusIds ?? []).map((fid) => students.find((s) => s.id === fid)).filter((s): s is Student => !!s)
+  const focusDone = focusKids.filter((s) => seenKids.has(s.id)).length
+  const reshuffle = () => {
+    if (!rotationData) return
+    const cur = new Set(focusIds ?? [])
+    const fresh = focusRotation(
+      pool.filter((s) => !cur.has(s.id) && !seenKids.has(s.id)),
+      rotationData.obs,
+      rotationData.goals,
+      lesson.focusCompetencyIds,
+      5,
+    )
+    const fill = fresh.length < 5 ? focusRotation(pool.filter((s) => !fresh.includes(s)), rotationData.obs, rotationData.goals, lesson.focusCompetencyIds, 5 - fresh.length) : []
+    setFocusIds([...fresh, ...fill].map((s) => s.id))
+  }
+
+  /* Langes Drücken (Finger, Maus, Apple Pencil) öffnet die Schnellaktionen; kurzes Tippen die Erfassung. */
+  const press = useRef<{ timer?: number; x: number; y: number; fired: boolean }>({ x: 0, y: 0, fired: false })
+  const cancelPress = () => {
+    window.clearTimeout(press.current.timer)
+    press.current.timer = undefined
+  }
+  useEffect(() => () => window.clearTimeout(press.current.timer), [])
+  const openMenu = (s: Student, el: HTMLElement) => setMenu({ student: s, rect: el.getBoundingClientRect() })
+  const pressHandlers = (s: Student) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      press.current.fired = false
+      cancelPress()
+      if (multi || (e.pointerType === 'mouse' && e.button !== 0)) return
+      const el = e.currentTarget
+      press.current.x = e.clientX
+      press.current.y = e.clientY
+      press.current.timer = window.setTimeout(() => {
+        press.current.timer = undefined
+        press.current.fired = true
+        navigator.vibrate?.(12)
+        openMenu(s, el)
+      }, 450)
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      if (press.current.timer && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 10) cancelPress()
+    },
+    onPointerUp: cancelPress,
+    onPointerCancel: cancelPress,
+    onPointerLeave: cancelPress,
+    onContextMenu: (e: React.MouseEvent<HTMLElement>) => {
+      e.preventDefault()
+      // Rechtsklick / Kontextmenü-Taste am Laptop
+      if (!press.current.fired && !multi) {
+        cancelPress()
+        press.current.fired = true
+        openMenu(s, e.currentTarget)
+      }
+    },
+  })
+
+  /* Schnell speichern aus den Schnellaktionen */
+  const done = (s: Student, what: string) => toast(discreet ? 'Gespeichert' : `${s.firstName}: ${what}`)
+  const quick = async (s: Student, o: Partial<Observation> & Pick<Observation, 'kind' | 'valence' | 'text'>, what: string) => {
+    try {
+      await quickSave({ classId: lesson.classId, studentIds: [s.id], lessonId: lesson.id, subject: lesson.subject, ...o })
+      done(s, what)
+    } catch {
+      toast('Speichern fehlgeschlagen', undefined, 'error')
+    }
+  }
+  const lessonLevel = (s: Student, compId: string) =>
+    inLesson.find((o) => o.competencyId === compId && o.kind === 'lernstand' && o.studentIds.length === 1 && o.studentIds[0] === s.id && !o.text)
+  const setLevel = async (s: Student, c: Competency, level: 1 | 2 | 3 | 4) => {
+    const valence: Observation['valence'] = level >= 3 ? 'pos' : level === 1 ? 'neg' : 'neu'
+    const existing = lessonLevel(s, c.id)
+    if (existing) {
+      try {
+        await save(db.observations, { ...existing, level, valence })
+        done(s, LEVEL_LABEL[level])
+      } catch {
+        toast('Speichern fehlgeschlagen', undefined, 'error')
+      }
+    } else await quick(s, { kind: 'lernstand', valence, subject: c.subject, competencyId: c.id, level, text: '' }, LEVEL_LABEL[level])
+  }
+  const saveVoice = (s: Student, blob: Blob, mime: string) =>
+    quick(s, { unsorted: true, kind: 'beobachtung', valence: 'neu', text: 'Sprachnotiz', attachments: [{ id: uid(), type: 'audio', mime, blob }] }, 'Sprachnotiz gespeichert')
+  const savePhoto = (s: Student, blob: Blob) =>
+    quick(s, { unsorted: false, kind: 'arbeitsprobe', valence: 'neu', text: '', attachments: [{ id: uid(), type: 'image', mime: blob.type || 'image/jpeg', blob }] }, 'Foto gespeichert')
+  const saveSketch = (s: Student, blob: Blob) =>
+    quick(s, { unsorted: true, kind: 'beobachtung', valence: 'neu', text: 'Skizze', attachments: [{ id: uid(), type: 'sketch', mime: 'image/png', blob } satisfies Attachment] }, 'Skizze gespeichert')
 
   // Sitzplan: nur gültige Plätze innerhalb Reihen × Spalten, jedes Kind höchstens einmal
   const layout = useMemo(() => {
@@ -256,16 +367,26 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
     const mine = inLesson.filter((o) => o.studentIds.includes(s.id))
     const sel = selected.includes(s.id)
     const dim = !isFocus(s) && !sel
+    const today = !!focusIds?.includes(s.id)
     return (
       <button
         key={s.id}
         type="button"
-        onClick={() => tap(s)}
+        {...pressHandlers(s)}
+        onClick={() => {
+          if (press.current.fired) {
+            press.current.fired = false
+            return
+          }
+          tap(s)
+        }}
+        style={{ WebkitTouchCallout: 'none', touchAction: 'manipulation' }}
         aria-pressed={multi ? sel : undefined}
-        aria-label={`${s.firstName}${mine.length ? `, ${mine.length} Einträge` : ''}`}
+        aria-label={`${s.firstName}${mine.length ? `, ${mine.length} Einträge` : ''}${today ? ', Fokus heute' : ''}`}
+        aria-haspopup="menu"
         className={clsx(
           'relative flex h-full w-full flex-col items-center justify-center rounded-2xl shadow-[var(--shadow-card)] ring-1 transition duration-150 select-none active:scale-[0.96]',
-          sel ? 'bg-brand-50 ring-2 ring-brand-500' : 'bg-white ring-slate-200/80 hover:ring-slate-300',
+          sel ? 'bg-brand-50 ring-2 ring-brand-500' : today ? (discreet ? 'bg-white ring-2 ring-slate-300' : 'bg-white ring-2 ring-amber-300/80 hover:ring-amber-400') : 'bg-white ring-slate-200/80 hover:ring-slate-300',
           compact ? 'min-h-[104px] gap-1 p-1.5' : 'min-h-[120px] gap-1.5 p-2',
           dim && 'opacity-45',
         )}
@@ -316,6 +437,10 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
               <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-brand-50 px-1.5 py-0.5 font-semibold text-brand-700 tabular-nums">
                 <Clock size={12} /> {elapsed} min
               </span>
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <ClassDot c={cls} className="!size-2" />
+                <span className="truncate">{contextLabel(cls)}</span>
+              </span>
               <span className="shrink-0 tabular-nums">
                 {inLesson.length} Einträge · {seenKids.size}/{visible.length} Kinder
               </span>
@@ -352,6 +477,16 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
                 },
               ]}
             />
+            {unsorted > 0 && (
+              <button
+                type="button"
+                onClick={() => toast(`${unsorted} ${unsorted === 1 ? 'Notiz ist' : 'Notizen sind'} noch unsortiert – du ordnest sie beim Beenden der Stunde zu.`)}
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-amber-50 px-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200 transition hover:bg-amber-100"
+                title="Sprachnotizen und Skizzen werden beim Stundenende zugeordnet"
+              >
+                <Inbox size={16} /> Unsortiert <span className="tabular-nums">{unsorted}</span>
+              </button>
+            )}
             <Button variant={multi ? 'soft' : 'secondary'} className={toolBtn} aria-pressed={multi} onClick={() => (setMulti((m) => !m), setSelected([]))}>
               <Users size={16} /> Mehrere
             </Button>
@@ -366,6 +501,48 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
             </Button>
           </div>
         </div>
+
+        {focusKids.length > 0 && (
+          <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2 md:px-5">
+            <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+              <Sparkles size={13} /> <span className="hidden sm:inline">Fokus heute</span>
+              <span className="blur-sensitive ml-0.5 font-medium tabular-nums normal-case">
+                {focusDone}/{focusKids.length}
+              </span>
+            </span>
+            <div className="-my-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-1">
+              {focusKids.map((s) => {
+                const ok = seenKids.has(s.id)
+                const sel = selected.includes(s.id)
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => tap(s)}
+                    aria-label={`${s.firstName}${ok ? ', heute schon erfasst' : ''}`}
+                    className={clsx(
+                      'inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full py-1 pr-3 pl-1 text-sm font-medium ring-1 transition active:scale-[0.97]',
+                      sel ? 'bg-brand-50 ring-brand-400' : 'bg-white ring-slate-200 hover:bg-slate-50',
+                    )}
+                  >
+                    <span className="relative">
+                      <Avatar student={s} size={30} />
+                      {ok && (
+                        <span className={clsx('absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full !text-[#fff] ring-2 ring-white', discreet ? 'bg-slate-400' : 'bg-emerald-500')}>
+                          <Check size={10} strokeWidth={3.5} />
+                        </span>
+                      )}
+                    </span>
+                    <span className={clsx(ok && !discreet ? 'text-slate-400' : 'text-slate-800')}>{s.firstName}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <Button variant="ghost" size="sm" className="h-10 shrink-0" onClick={reshuffle} aria-label="Fokus neu mischen" title="Fokus neu mischen">
+              <Shuffle size={15} /> <span className="hidden sm:inline">neu mischen</span>
+            </Button>
+          </div>
+        )}
 
         {multi && (
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-brand-50/50 px-3 py-2 md:px-5">
@@ -390,7 +567,7 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
         {!students.length ? (
           <Card>
             <Empty icon={Users}>
-              Diese Klasse hat noch keine Kinder. Unter{' '}
+              {isGroup(cls) ? 'Diese Gruppe hat noch keine Mitglieder' : 'Diese Klasse hat noch keine Kinder'}. Unter{' '}
               <Link to="/einstellungen" className="font-medium text-brand-700 underline">
                 Einstellungen
               </Link>{' '}
@@ -451,9 +628,235 @@ function LiveMode({ lesson, cls, students, obs, comps }: { lesson: Lesson; cls: 
           setMulti(false)
         }}
       />
+      {menu && (
+        <QuickActions
+          key={menu.student.id}
+          student={menu.student}
+          rect={menu.rect}
+          comps={focusComps.slice(0, 3)}
+          discreet={discreet}
+          currentLevel={(cid) => lessonLevel(menu.student, cid)?.level}
+          onLevel={(c, l) => {
+            void setLevel(menu.student, c, l)
+            setMenu(null)
+          }}
+          onVoice={(blob, mime) => {
+            void saveVoice(menu.student, blob, mime)
+            setMenu(null)
+          }}
+          onPhoto={(blob) => {
+            void savePhoto(menu.student, blob)
+            setMenu(null)
+          }}
+          onSketch={() => {
+            setSketchFor(menu.student)
+            setMenu(null)
+          }}
+          onCapture={() => {
+            setCapture(ctx([menu.student.id]))
+            setMenu(null)
+          }}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      <Sheet open={!!sketchFor} onClose={() => setSketchFor(null)} title={discreet || !sketchFor ? 'Skizze' : `Skizze · ${sketchFor.firstName}`} wide>
+        {sketchFor && (
+          <SketchPad
+            onDone={(blob) => {
+              void saveSketch(sketchFor, blob)
+              setSketchFor(null)
+            }}
+            onCancel={() => setSketchFor(null)}
+          />
+        )}
+      </Sheet>
       <ReflectionSheet lesson={lesson} open={ending} onClose={() => setEnding(false)} students={students} observations={obs} />
       {dictating && <DictationSheet open onClose={() => setDictating(false)} cls={cls} students={students} comps={comps} lessonId={lesson.id} subject={lesson.subject} />}
     </div>
+  )
+}
+
+/* ───────────────────────── Schnellaktionen (langes Drücken) ───────────────────────── */
+
+function QuickActions({
+  student,
+  rect,
+  comps,
+  discreet,
+  currentLevel,
+  onLevel,
+  onVoice,
+  onPhoto,
+  onSketch,
+  onCapture,
+  onClose,
+}: {
+  student: Student
+  rect: DOMRect
+  comps: Competency[]
+  discreet: boolean
+  currentLevel: (compId: string) => number | undefined
+  onLevel: (c: Competency, level: 1 | 2 | 3 | 4) => void
+  onVoice: (blob: Blob, mime: string) => void
+  onPhoto: (blob: Blob) => void
+  onSketch: () => void
+  onCapture: () => void
+  onClose: () => void
+}) {
+  const [mode, setMode] = useState<'menu' | 'voice'>('menu')
+  const [openComp, setOpenComp] = useState<string | null>(comps.length === 1 ? comps[0].id : null)
+  const [recording, setRecording] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const canClose = !recording && !busy
+  const close = () => canClose && onClose()
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (mode === 'voice' && !recording) setMode('menu')
+      else if (!recording && !busy) onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mode, recording, busy, onClose])
+
+  // Position: unter oder über der Kachel, horizontal eingepasst; bei wenig Platz mittig.
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const W = Math.min(320, vw - 16)
+  const left = Math.max(8, Math.min(rect.left + rect.width / 2 - W / 2, vw - W - 8))
+  const below = vh - rect.bottom - 16
+  const above = rect.top - 16
+  const pos: React.CSSProperties =
+    Math.max(below, above) < 260
+      ? { left: (vw - W) / 2, top: '50%', transform: 'translateY(-50%)', maxHeight: vh - 32 }
+      : below >= above
+        ? { left, top: rect.bottom + 8, maxHeight: below }
+        : { left, bottom: vh - rect.top + 8, maxHeight: above }
+
+  const action = 'flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl bg-slate-50 px-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200/80 transition hover:bg-slate-100 active:scale-[0.97] disabled:opacity-50'
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-slate-950/10" onPointerDown={close} aria-hidden />
+      <div
+        role="menu"
+        aria-label={`Schnellaktionen für ${student.firstName}`}
+        className="fixed z-50 animate-fade-in overflow-y-auto overscroll-contain rounded-2xl bg-white p-3 shadow-2xl ring-1 ring-slate-200"
+        style={{ ...pos, width: W }}
+      >
+        <div className="mb-3 flex items-center gap-2.5">
+          <Avatar student={student} size={34} />
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="blur-sensitive truncate font-semibold text-slate-900">{student.firstName}</p>
+            <p className="text-xs text-slate-400">{mode === 'voice' ? 'Sprachnotiz' : 'Schnellaktionen'}</p>
+          </div>
+          <button type="button" onClick={close} disabled={!canClose} aria-label="Schließen" className="flex size-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40">
+            <X size={18} />
+          </button>
+        </div>
+
+        {mode === 'voice' ? (
+          <div className="space-y-3">
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-slate-50 px-3 py-5 text-center ring-1 ring-slate-200/80">
+              <span className={clsx('flex size-14 items-center justify-center rounded-full', recording ? 'bg-rose-100 text-rose-600' : 'bg-white text-slate-500 ring-1 ring-slate-200')}>
+                <Mic size={26} />
+              </span>
+              <VoiceRecorder onRecordingChange={setRecording} onDone={onVoice} />
+              <p className="text-xs text-slate-500">{recording ? 'Aufnahme läuft – „Stopp“ speichert.' : 'Wird unsortiert gespeichert und am Stundenende zugeordnet.'}</p>
+            </div>
+            {!recording && (
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => setMode('menu')}>
+                <ChevronLeft size={15} /> Zurück
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {comps.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="px-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Schwerpunkt einschätzen</p>
+                {comps.map((c) => {
+                  const cur = currentLevel(c.id)
+                  const isOpen = openComp === c.id
+                  return (
+                    <div key={c.id} className={clsx('rounded-xl ring-1 transition', isOpen ? 'bg-slate-50 ring-slate-200' : 'ring-transparent')}>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        aria-expanded={isOpen}
+                        onClick={() => setOpenComp(isOpen ? null : c.id)}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <Target size={15} className="shrink-0 text-slate-400" />
+                        <span className="line-clamp-2 min-w-0 flex-1 leading-snug">{c.text}</span>
+                        {cur ? (
+                          <span className={clsx('blur-sensitive shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1', discreet ? 'bg-slate-100 text-slate-500 ring-slate-200' : LEVEL_CHIP[cur])}>
+                            {discreet ? '●' : LEVEL_LABEL[cur]}
+                          </span>
+                        ) : null}
+                      </button>
+                      {isOpen && (
+                        <div className="grid grid-cols-4 gap-1.5 px-1.5 pb-1.5">
+                          {([1, 2, 3, 4] as const).map((l) => (
+                            <button
+                              key={l}
+                              type="button"
+                              onClick={() => onLevel(c, l)}
+                              aria-pressed={cur === l}
+                              className={clsx(
+                                'h-12 rounded-xl px-1 text-[11px] leading-tight font-semibold ring-1 transition active:scale-[0.96]',
+                                discreet ? 'bg-white text-slate-600 ring-slate-200' : LEVEL_CHIP[l],
+                                cur === l && 'ring-2 ring-slate-900/70',
+                              )}
+                            >
+                              {LEVEL_LABEL[l]}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              <button type="button" role="menuitem" className={action} onClick={() => setMode('voice')}>
+                <Mic size={22} className="text-slate-500" /> Sprachnotiz
+              </button>
+              <button type="button" role="menuitem" className={action} disabled={busy} onClick={() => fileRef.current?.click()}>
+                <Camera size={22} className="text-slate-500" /> {busy ? 'Lädt …' : 'Foto'}
+              </button>
+              <button type="button" role="menuitem" className={action} onClick={onSketch}>
+                <PenLine size={22} className="text-slate-500" /> Skizze
+              </button>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (!f) return
+                setBusy(true)
+                try {
+                  onPhoto(await compressImage(f))
+                } catch {
+                  toast('Foto konnte nicht gelesen werden', undefined, 'error')
+                  setBusy(false)
+                }
+              }}
+            />
+            <button type="button" role="menuitem" onClick={onCapture} className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-medium text-brand-700 hover:bg-brand-50">
+              <Pencil size={15} /> Ausführlich erfassen
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 
